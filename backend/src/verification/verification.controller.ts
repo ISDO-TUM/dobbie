@@ -1,0 +1,95 @@
+import { Controller, Post, Param, Body, Logger, Get } from '@nestjs/common';
+import { VerificationService } from './verification.service';
+
+interface VerificationRequestDto {
+  targetAddress: string;
+  ipfsCID: string;
+  governorAddress: string;
+}
+
+interface CancelRequestDto {
+  type: 'basic' | 'custom';
+}
+
+@Controller('proposals')
+export class VerificationController {
+  private readonly logger = new Logger(VerificationController.name);
+
+  constructor(private readonly verificationService: VerificationService) {}
+
+  // --- 1. INTEGRITY CHECK (Math Check) ---
+  @Post(':id/check/integrity')
+  async runIntegrityCheck(
+    @Param('id') proposalId: string,
+    @Body() body: VerificationRequestDto,
+  ) {
+    this.logger.log(`🕵️‍♂️ Checksum check started for #${proposalId}`);
+
+    const result = await this.verificationService.runMathCheck(
+      proposalId,
+      body.targetAddress,
+      body.ipfsCID,
+      body.governorAddress,
+    );
+
+    return {
+      status: 'complete',
+      step: 'math',
+      result: result.math,
+    };
+  }
+
+  // --- 2. BASIC SIMULATION (Standard Tests) ---
+  @Post(':id/check/basic')
+  async runBasicTests(
+    @Param('id') proposalId: string,
+    @Body() body: VerificationRequestDto,
+  ) {
+    this.logger.log(`🧪 Basic simulation started for #${proposalId}`);
+
+    const result = await this.verificationService.runBasicTests(
+      proposalId,
+      body.ipfsCID,
+    );
+
+    return {
+      status: 'complete',
+      step: 'basic',
+      result: result.tests.basic,
+    };
+  }
+
+  // --- 3. CUSTOM TEST SUITE (Private Tests) ---
+  @Post(':id/check/custom')
+  async runCustomTests(
+    @Param('id') proposalId: string,
+    @Body() body: VerificationRequestDto,
+  ) {
+    this.logger.log(`🔬 Custom test suite started for #${proposalId}`);
+
+    const result = await this.verificationService.runCustomTests(
+      proposalId,
+      body.ipfsCID,
+    );
+
+    return {
+      status: 'complete',
+      step: 'custom',
+      result: result.tests.custom,
+    };
+  }
+
+  @Get(':id/status')
+  async getStatus(@Param('id') proposalId: string) {
+    return await this.verificationService.getVerificationStatus(proposalId);
+  }
+
+  @Post(':id/cancel')
+  async cancelTests(
+    @Param('id') proposalId: string,
+    @Body() body: CancelRequestDto,
+  ) {
+    this.logger.log(`🛑 Cancelling ${body.type} tests for #${proposalId}`);
+    return await this.verificationService.cancelTests(proposalId, body.type);
+  }
+}

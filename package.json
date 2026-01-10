@@ -1,0 +1,13 @@
+{
+  "name": "dobby-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "contracts"
+  ],
+  "scripts": {
+    "dev": "pnpm -r run dev",
+    "analyze": "/opt/anaconda3/bin/python ./verification/analyze_performance.py"
+  }
+}
