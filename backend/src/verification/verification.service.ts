@@ -421,6 +421,9 @@ RUN pnpm install
 
 # CHANGE: Install Viem plugins instead of Toolbox/Ethers
 RUN pnpm add -D hardhat @nomicfoundation/hardhat-viem @nomicfoundation/hardhat-ignition-viem @nomicfoundation/hardhat-network-helpers viem ts-node typescript tsx @types/mocha @types/chai mocha chai --config.ignore-workspace-root-check=true
+
+# PRE-DOWNLOAD: Compile contracts during build to cache the Solidity compiler
+RUN pnpm exec hardhat compile || true
 `,
       );
     } catch (e) {
