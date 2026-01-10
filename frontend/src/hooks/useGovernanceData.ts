@@ -23,7 +23,6 @@ interface UseGovernanceDataProps {
 }
 
 const CACHE_KEY_PREFIX = "governance_proposals_cache_";
-const INDEXER_API = import.meta.env.VITE_INDEXER_API || "http://localhost:3001";
 
 interface RawProposal {
   id: string;
@@ -136,42 +135,12 @@ export function useGovernanceData({
   );
 
   // ============================================================================
-  // TIER 2: Indexer API
-  // ============================================================================
-  const fetchFromIndexer = useCallback(async (): Promise<
-    RawProposal[] | null
-  > => {
-    try {
-      console.log("🌐 [Tier 2] Fetching from indexer API...");
-      const response = await fetch(`${INDEXER_API}/api/proposals`, {
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Indexer returned ${response.status}`);
-      }
-
-      const { proposals: indexedProposals } = (await response.json()) as {
-        proposals: RawProposal[];
-      };
-      console.log(
-        `✅ [Tier 2] Success: ${indexedProposals.length} proposals found.`,
-      );
-
-      return indexedProposals;
-    } catch (err) {
-      console.warn("[Tier 2] Indexer unavailable:", err);
-      return null;
-    }
-  }, []);
-
-  // ============================================================================
-  // TIER 3: Direct Blockchain Scan (Helper)
+  // TIER 2: Direct Blockchain Scan (Helper)
   // ============================================================================
   const scanBlockchainRange = useCallback(
     async (fromBlock: number, toBlock: number): Promise<RawProposal[]> => {
       if (!provider || !contracts.governor) return [];
-      console.log(`⛓️ [Tier 3] Scanning blocks ${fromBlock} to ${toBlock}...`);
+      console.log(`⛓️ [Tier 2] Scanning blocks ${fromBlock} to ${toBlock}...`);
 
       const proposalCreatedIface = new ethers.Interface([
         "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)",
@@ -265,17 +234,17 @@ export function useGovernanceData({
           })
           .filter((p): p is RawProposal => p !== null);
       } catch (error) {
-        console.error("[Tier 3] Scan failed:", error);
+        console.error("[Tier 2] Scan failed:", error);
       }
 
-      console.log(`✅ [Tier 3] Found ${newProposals.length} items in range.`);
+      console.log(`✅ [Tier 2] Found ${newProposals.length} items in range.`);
       return newProposals;
     },
     [provider, contracts.governor],
   );
 
   // ============================================================================
-  // Main Fetch Strategy: Hybrid / Sovereign
+  // Main Fetch Strategy: Cache + Blockchain Scan
   // ============================================================================
   const fetchProposals = useCallback(async (): Promise<RawProposal[]> => {
     if (!provider || !contracts.governor) return [];
@@ -288,74 +257,32 @@ export function useGovernanceData({
       return [];
     }
 
-    // 1. Load Local State (Tier 1)
+    // 1. Load Local State (Tier 1 - Cache)
     const cached = loadFromCache();
     const lastScanned = cached
       ? cached.lastScannedBlock
       : Number(deploymentBlock) - 1;
     const knownProposals = cached ? cached.proposals : [];
 
-    // 2. Run Tier 2 (Indexer) & Tier 3 (Blockchain) in Parallel
+    // 2. Scan new blocks from blockchain (Tier 2)
     console.log(
-      `🚀 Starting Hybrid Scan (Last Block: ${lastScanned}, Current: ${currentBlockNumber})`,
+      `🚀 Starting Blockchain Scan (Last Block: ${lastScanned}, Current: ${currentBlockNumber})`,
     );
 
-    const [indexerResult, blockchainResult] = await Promise.allSettled([
-      fetchFromIndexer(),
-      // Only scan new blocks from blockchain to keep it fast
-      scanBlockchainRange(lastScanned + 1, currentBlockNumber),
-    ]);
+    const newOnChainProposals = await scanBlockchainRange(
+      lastScanned + 1,
+      currentBlockNumber,
+    );
 
-    const indexerProposals =
-      indexerResult.status === "fulfilled" ? indexerResult.value : null;
-    const newOnChainProposals =
-      blockchainResult.status === "fulfilled" ? blockchainResult.value : [];
+    // 3. Merge cached + newly found proposals
+    const allProposalsMap = new Map<string, RawProposal>();
+    knownProposals.forEach((p) => allProposalsMap.set(p.id, p));
+    newOnChainProposals.forEach((p) => allProposalsMap.set(p.id, p));
 
-    // 3. Merge Blockchain Data (Frontend Truth)
-    // Combine cached proposals + newly found on-chain proposals
-    const allOnChainProposalsMap = new Map<string, RawProposal>();
-    knownProposals.forEach((p) => allOnChainProposalsMap.set(p.id, p));
-    newOnChainProposals?.forEach((p) => allOnChainProposalsMap.set(p.id, p));
+    const finalProposals = Array.from(allProposalsMap.values());
 
-    const frontendProposals = Array.from(allOnChainProposalsMap.values());
-
-    // 4. Audit & Merge Backend Data
-    // We use the frontend scan as the "base" truth, but we check if backend has more.
-    const finalProposalsMap = new Map<string, RawProposal>();
-
-    // Add Frontend data first
-    frontendProposals.forEach((p) => finalProposalsMap.set(p.id, p));
-
-    if (indexerProposals) {
-      const frontendIds = new Set(frontendProposals.map((p) => p.id));
-      const backendIds = new Set(indexerProposals.map((p) => p.id));
-
-      // Check for discrepancies
-      frontendProposals.forEach((p) => {
-        if (!backendIds.has(p.id)) {
-          console.warn(
-            `⚠️ Sovereign Alert: Frontend found Proposal ${p.id} but Backend missed it!`,
-          );
-        }
-      });
-
-      indexerProposals.forEach((p) => {
-        if (!frontendIds.has(p.id)) {
-          console.info(
-            `ℹ️ Backend found older Proposal ${p.id} (Frontend missed/cache cold). Merging it.`,
-          );
-          finalProposalsMap.set(p.id, p);
-        }
-      });
-    }
-
-    const finalProposals = Array.from(finalProposalsMap.values());
-
-    // 5. Update Cache
-    if (
-      (newOnChainProposals && newOnChainProposals.length > 0) ||
-      (indexerProposals && !cached)
-    ) {
+    // 4. Update Cache
+    if (newOnChainProposals.length > 0 || !cached) {
       saveToCache({
         lastScannedBlock: currentBlockNumber,
         proposals: finalProposals,
@@ -369,7 +296,6 @@ export function useGovernanceData({
     contracts.governor,
     loadFromCache,
     saveToCache,
-    fetchFromIndexer,
     scanBlockchainRange,
     deploymentBlock,
   ]);
