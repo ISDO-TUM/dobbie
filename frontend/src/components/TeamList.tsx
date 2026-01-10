@@ -10,6 +10,7 @@ interface TeamListProps {
   onAddStakeholder: () => void;
   onRemoveStakeholder: (address: string) => void;
   onEditIdentity?: () => void;
+  canInteract?: boolean;
 }
 
 export const TeamList: React.FC<TeamListProps> = ({
@@ -19,6 +20,7 @@ export const TeamList: React.FC<TeamListProps> = ({
   onAddStakeholder,
   onRemoveStakeholder,
   onEditIdentity,
+  canInteract = false,
 }) => {
   const isCurrentUser = (address: string) =>
     currentUserAddress?.toLowerCase() === address.toLowerCase();
@@ -46,9 +48,9 @@ export const TeamList: React.FC<TeamListProps> = ({
         </h3>
         <button
           onClick={onAddStakeholder}
-          disabled={isLoading}
-          className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all disabled:opacity-50 text-blue-400 hover:text-blue-300"
-          title="Add stakeholder"
+          disabled={isLoading || !canInteract}
+          className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 hover:text-blue-300"
+          title={canInteract ? "Add stakeholder" : "Connect wallet as stakeholder to add stakeholders"}
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -113,7 +115,7 @@ export const TeamList: React.FC<TeamListProps> = ({
                         <Pencil className="w-4 h-4" />
                       </button>
                     )}
-                    {!isSelf && (
+                    {!isSelf && canInteract && (
                       <button
                         onClick={() =>
                           handleRemove(stakeholder.address, stakeholder.github)

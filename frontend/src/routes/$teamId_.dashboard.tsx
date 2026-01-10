@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, QueryClient } from "@tanstack/react-query";
 import { teamQueryOptions } from "../queries/teams";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
 
 // -- HOOKS ---
@@ -99,6 +99,14 @@ function TeamDashboard() {
     selectedProject,
     deploymentBlock,
   });
+
+  // Check if current user is a stakeholder (can interact with governance)
+  const isStakeholder = useMemo(() => {
+    if (!account) return false;
+    return stakeholders.some(
+      (s) => s.address.toLowerCase() === account.toLowerCase()
+    );
+  }, [account, stakeholders]);
 
   // Combine refresh functions
   const handleRefresh = useCallback(() => {
@@ -555,6 +563,7 @@ function TeamDashboard() {
             currentBlock={currentBlock}
             bots={bots}
             onRefresh={handleRefresh}
+            canInteract={isStakeholder}
           />
         </main>
 
@@ -566,6 +575,7 @@ function TeamDashboard() {
             onChangeVotingDelay={openChangeVotingDelayModal}
             onChangeVotingPeriod={openChangeVotingPeriodModal}
             onChangeMinDelay={openChangeMinDelayModal}
+            canInteract={isStakeholder}
           />
 
           {/* GLOBAL: Core Contracts */}
@@ -582,6 +592,7 @@ function TeamDashboard() {
             onAddStakeholder={openAddStakeholderModal}
             onRemoveStakeholder={openRemoveStakeholderModal}
             onEditIdentity={openEditIdentityModal}
+            canInteract={isStakeholder}
           />
 
           {/* GLOBAL: Bot Addresses */}
@@ -590,6 +601,7 @@ function TeamDashboard() {
             isLoading={isLoadingGovernance}
             onAddBot={openAddBotModal}
             onRemoveBot={openRemoveBotModal}
+            canInteract={isStakeholder}
           />
 
           <ProjectSelector
@@ -600,6 +612,7 @@ function TeamDashboard() {
             error={projectsError}
             hideRefreshButton={true}
             onCreateProject={openCreateProjectModal}
+            canInteract={isStakeholder}
           />
 
           {selectedProject && (
@@ -608,6 +621,7 @@ function TeamDashboard() {
               upgradeHistory={displayUpgradeHistory}
               isLoading={isLoadingGovernance}
               onProposePackage={openProposePackageModal}
+              canInteract={isStakeholder}
             />
           )}
         </aside>

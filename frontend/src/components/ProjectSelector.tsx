@@ -11,6 +11,7 @@ interface ProjectSelectorProps {
   error?: string | null;
   hideRefreshButton?: boolean;
   onCreateProject?: () => void;
+  canInteract?: boolean;
 }
 
 export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
@@ -22,6 +23,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   error,
   hideRefreshButton,
   onCreateProject,
+  canInteract = false,
 }) => {
   return (
     <div className="bg-linear-to-br from-gray-900/80 via-gray-900/50 to-gray-950 border border-gray-800 rounded-lg overflow-hidden shadow-xl">
@@ -31,9 +33,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         </h3>
         <button
           onClick={onCreateProject}
-          disabled={isLoading}
-          className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all disabled:opacity-50 text-blue-400 hover:text-blue-300"
-          title="Create new project"
+          disabled={isLoading || !canInteract}
+          className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 hover:text-blue-300"
+          title={canInteract ? "Create new project" : "Connect wallet as stakeholder to create projects"}
         >
           <Plus className="w-4 h-4" />
         </button>

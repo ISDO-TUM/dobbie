@@ -10,6 +10,7 @@ interface GovernanceParametersCardProps {
   onChangeVotingPeriod?: () => void;
   onChangeConfirmationPeriod?: () => void;
   onChangeMinDelay?: () => void;
+  canInteract?: boolean;
 }
 
 export const GovernanceParametersCard: React.FC<
@@ -20,6 +21,7 @@ export const GovernanceParametersCard: React.FC<
   onChangeVotingDelay,
   onChangeVotingPeriod,
   onChangeMinDelay,
+  canInteract = false,
 }) => {
   const votingPeriodSeconds =
     governanceParams.votingPeriod * AVERAGE_BLOCK_TIME_SECONDS;
@@ -58,9 +60,9 @@ export const GovernanceParametersCard: React.FC<
                 {onChangeVotingDelay && (
                   <button
                     onClick={onChangeVotingDelay}
-                    disabled={isLoading}
-                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50"
-                    title="Change voting delay"
+                    disabled={isLoading || !canInteract}
+                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={canInteract ? "Change voting delay" : "Connect wallet as stakeholder to change parameters"}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -83,9 +85,9 @@ export const GovernanceParametersCard: React.FC<
                 {onChangeVotingPeriod && (
                   <button
                     onClick={onChangeVotingPeriod}
-                    disabled={isLoading}
-                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50"
-                    title="Change voting period"
+                    disabled={isLoading || !canInteract}
+                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={canInteract ? "Change voting period" : "Connect wallet as stakeholder to change parameters"}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -108,9 +110,9 @@ export const GovernanceParametersCard: React.FC<
                 {onChangeMinDelay && (
                   <button
                     onClick={onChangeMinDelay}
-                    disabled={isLoading}
-                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50"
-                    title="Change timelock min delay"
+                    disabled={isLoading || !canInteract}
+                    className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 hover:border-blue-500 transition-all text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={canInteract ? "Change timelock min delay" : "Connect wallet as stakeholder to change parameters"}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>

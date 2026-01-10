@@ -30,6 +30,7 @@ interface ProposalCardProps {
   bots: Bot[];
   isVerified?: boolean;
   onVerify?: () => void;
+  canInteract?: boolean;
 }
 
 export const ProposalCard: React.FC<ProposalCardProps> = ({
@@ -41,6 +42,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
   bots,
   isVerified = false,
   onVerify,
+  canInteract = false,
 }) => {
   const [hasVotedStatus, setHasVotedStatus] = useState<boolean>(false);
   const [isCheckingVote, setIsCheckingVote] = useState<boolean>(true);
@@ -391,21 +393,24 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                       <button
                         onClick={() => handleVote(proposal.id, 1)}
                         className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Approve"}
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 0)}
                         className="px-4 py-2 text-xs font-semibold text-red-300 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Reject"}
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 2)}
                         className="px-4 py-2 text-xs font-semibold text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Abstain"}
                       >
                         Abstain
                       </button>
@@ -418,21 +423,24 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                       <button
                         onClick={() => handleVote(proposal.id, 1)}
                         className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Approve"}
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 0)}
                         className="px-4 py-2 text-xs font-semibold text-red-300 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Reject"}
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 2)}
                         className="px-4 py-2 text-xs font-semibold text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || isQueuing || isExecuting}
+                        disabled={!account || !canInteract || isQueuing || isExecuting}
+                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Abstain"}
                       >
                         Abstain
                       </button>
@@ -468,8 +476,9 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
             {proposal.status === "Succeeded" && (
               <button
                 onClick={handleQueue}
-                className="px-4 py-2 text-xs font-semibold text-yellow-300 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-600/50 hover:border-yellow-500 rounded-lg transition-all disabled:opacity-50"
-                disabled={isQueuing || !account}
+                className="px-4 py-2 text-xs font-semibold text-yellow-300 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-600/50 hover:border-yellow-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isQueuing || !account || !canInteract}
+                title={!canInteract ? "Connect wallet as stakeholder to queue" : "Queue proposal"}
               >
                 {isQueuing ? "Queuing..." : "Queue"}
               </button>
@@ -479,8 +488,9 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
             {proposal.status === "Queued" && (
               <button
                 onClick={handleExecute}
-                className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50"
-                disabled={isExecuting || !account}
+                className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isExecuting || !account || !canInteract}
+                title={!canInteract ? "Connect wallet as stakeholder to execute" : "Execute proposal"}
               >
                 {isExecuting ? "Executing..." : "Execute"}
               </button>

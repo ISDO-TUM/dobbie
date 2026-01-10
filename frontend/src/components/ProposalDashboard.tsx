@@ -22,6 +22,7 @@ interface ProposalDashboardProps {
   bots: Bot[];
   isLoading: boolean;
   onRefresh?: () => void;
+  canInteract?: boolean;
 }
 
 type TabType = "development" | "governance";
@@ -36,6 +37,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
   bots,
   isLoading,
   onRefresh,
+  canInteract = false,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("development");
   const [viewType, setViewType] = useState<ViewType>("active");
@@ -296,6 +298,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
               bots={bots}
               isVerified={verifiedIds.has(proposal.id.toString())}
               onVerify={() => setVerifyingProposal(proposal)}
+              canInteract={canInteract}
             />
           ))}
         </div>
@@ -330,6 +333,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
             handleVerificationSuccess(verifyingProposal.id.toString());
             onVoteSuccess();
           }}
+          canInteract={canInteract}
         />
       )}
     </div>

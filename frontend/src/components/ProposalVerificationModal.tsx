@@ -33,6 +33,7 @@ interface ProposalVerificationModalProps {
   contracts: Contracts;
   account: string | null;
   onVoteSuccess: () => void;
+  canInteract?: boolean;
 }
 
 type StepStatus = "idle" | "loading" | "success" | "error" | "checked";
@@ -51,6 +52,7 @@ export function ProposalVerificationModal({
   contracts,
   account,
   onVoteSuccess,
+  canInteract = false,
 }: ProposalVerificationModalProps) {
   const [steps, setSteps] = useState<{
     math: VerificationStep;
@@ -763,10 +765,15 @@ export function ProposalVerificationModal({
                 <div className="grid grid-cols-3 gap-3">
                   <motion.button
                     onClick={() => handleVote(1)}
-                    disabled={isVoting || !account}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={isVoting || !account || !canInteract}
+                    whileHover={{ scale: canInteract ? 1.02 : 1 }}
+                    whileTap={{ scale: canInteract ? 0.98 : 1 }}
                     className="flex flex-col items-center gap-2 p-4 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                    title={
+                      !canInteract
+                        ? "Connect wallet as stakeholder to vote"
+                        : "Approve"
+                    }
                   >
                     <ThumbsUp className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform" />
                     <span className="text-sm font-semibold text-green-300">
@@ -776,10 +783,15 @@ export function ProposalVerificationModal({
 
                   <motion.button
                     onClick={() => handleVote(0)}
-                    disabled={isVoting || !account}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={isVoting || !account || !canInteract}
+                    whileHover={{ scale: canInteract ? 1.02 : 1 }}
+                    whileTap={{ scale: canInteract ? 0.98 : 1 }}
                     className="flex flex-col items-center gap-2 p-4 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                    title={
+                      !canInteract
+                        ? "Connect wallet as stakeholder to vote"
+                        : "Reject"
+                    }
                   >
                     <ThumbsDown className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform" />
                     <span className="text-sm font-semibold text-red-300">
@@ -789,10 +801,15 @@ export function ProposalVerificationModal({
 
                   <motion.button
                     onClick={() => handleVote(2)}
-                    disabled={isVoting || !account}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={isVoting || !account || !canInteract}
+                    whileHover={{ scale: canInteract ? 1.02 : 1 }}
+                    whileTap={{ scale: canInteract ? 0.98 : 1 }}
                     className="flex flex-col items-center gap-2 p-4 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                    title={
+                      !canInteract
+                        ? "Connect wallet as stakeholder to vote"
+                        : "Abstain"
+                    }
                   >
                     <Minus className="w-6 h-6 text-gray-400 group-hover:scale-110 transition-transform" />
                     <span className="text-sm font-semibold text-gray-300">
