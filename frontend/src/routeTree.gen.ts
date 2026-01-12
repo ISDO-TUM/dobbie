@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as JoinTeamRouteImport } from './routes/join-team'
 import { Route as CreateTeamRouteImport } from './routes/create-team'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TeamIdSettingsRouteImport } from './routes/$teamId_.settings'
 import { Route as TeamIdDocsRouteImport } from './routes/$teamId_.docs'
 import { Route as TeamIdDashboardRouteImport } from './routes/$teamId_.dashboard'
 
@@ -29,11 +28,6 @@ const CreateTeamRoute = CreateTeamRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TeamIdSettingsRoute = TeamIdSettingsRouteImport.update({
-  id: '/$teamId_/settings',
-  path: '/$teamId/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TeamIdDocsRoute = TeamIdDocsRouteImport.update({
@@ -53,7 +47,6 @@ export interface FileRoutesByFullPath {
   '/join-team': typeof JoinTeamRoute
   '/$teamId/dashboard': typeof TeamIdDashboardRoute
   '/$teamId/docs': typeof TeamIdDocsRoute
-  '/$teamId/settings': typeof TeamIdSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +54,6 @@ export interface FileRoutesByTo {
   '/join-team': typeof JoinTeamRoute
   '/$teamId/dashboard': typeof TeamIdDashboardRoute
   '/$teamId/docs': typeof TeamIdDocsRoute
-  '/$teamId/settings': typeof TeamIdSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,7 +62,6 @@ export interface FileRoutesById {
   '/join-team': typeof JoinTeamRoute
   '/$teamId_/dashboard': typeof TeamIdDashboardRoute
   '/$teamId_/docs': typeof TeamIdDocsRoute
-  '/$teamId_/settings': typeof TeamIdSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,7 +71,6 @@ export interface FileRouteTypes {
     | '/join-team'
     | '/$teamId/dashboard'
     | '/$teamId/docs'
-    | '/$teamId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -88,7 +78,6 @@ export interface FileRouteTypes {
     | '/join-team'
     | '/$teamId/dashboard'
     | '/$teamId/docs'
-    | '/$teamId/settings'
   id:
     | '__root__'
     | '/'
@@ -96,7 +85,6 @@ export interface FileRouteTypes {
     | '/join-team'
     | '/$teamId_/dashboard'
     | '/$teamId_/docs'
-    | '/$teamId_/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +93,6 @@ export interface RootRouteChildren {
   JoinTeamRoute: typeof JoinTeamRoute
   TeamIdDashboardRoute: typeof TeamIdDashboardRoute
   TeamIdDocsRoute: typeof TeamIdDocsRoute
-  TeamIdSettingsRoute: typeof TeamIdSettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -131,13 +118,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$teamId_/settings': {
-      id: '/$teamId_/settings'
-      path: '/$teamId/settings'
-      fullPath: '/$teamId/settings'
-      preLoaderRoute: typeof TeamIdSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$teamId_/docs': {
       id: '/$teamId_/docs'
       path: '/$teamId/docs'
@@ -161,7 +141,6 @@ const rootRouteChildren: RootRouteChildren = {
   JoinTeamRoute: JoinTeamRoute,
   TeamIdDashboardRoute: TeamIdDashboardRoute,
   TeamIdDocsRoute: TeamIdDocsRoute,
-  TeamIdSettingsRoute: TeamIdSettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

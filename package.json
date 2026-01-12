@@ -1,5 +1,5 @@
 {
-  "name": "dobby-monorepo",
+  "name": "dobby",
   "private": true,
   "workspaces": [
     "frontend",
@@ -7,7 +7,7 @@
     "contracts"
   ],
   "scripts": {
-    "dev": "pnpm -r run dev",
+    "dev": "pnpm --recursive --parallel --stream run dev",
     "analyze": "/opt/anaconda3/bin/python ./verification/analyze_performance.py"
   }
 }

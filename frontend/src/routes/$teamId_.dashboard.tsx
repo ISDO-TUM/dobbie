@@ -21,17 +21,12 @@ import { ProjectSelector } from "../components/ProjectSelector";
 import { GovernanceParametersCard } from "../components/GovernanceParametersCard";
 
 // -- TYPES ---
-import type { FormField, ModalContentType } from "../types";
+import type { Bot, FormField, ModalContentType } from "../types";
 
 // -- LIB ---
 import { ProposeActionForm } from "../components/ProposeActionForm";
 import { useTeamContracts } from "../hooks/useTeamContracts";
 
-const beaconInterface = new ethers.Interface([
-  "function upgradeTo(address newImplementation)",
-]);
-
-// Define the file route, which corresponds to the path /$teamId/dashboard
 export const Route = createFileRoute("/$teamId_/dashboard")({
   loader: async ({ context, params }) => {
     const queryClient = (context as { queryClient: QueryClient }).queryClient;
@@ -54,7 +49,6 @@ export const Route = createFileRoute("/$teamId_/dashboard")({
 });
 
 function TeamDashboard() {
-  // --- TANSTACK ROUTER HOOKS ---
   const params = Route.useParams();
   const { data: team } = useSuspenseQuery(teamQueryOptions(params.teamId));
   const deploymentBlock = BigInt(team.deploymentBlock ?? 0);
@@ -64,7 +58,6 @@ function TeamDashboard() {
     deploymentRegistry: team.registryAddress,
   };
 
-  // --- MAIN APPLICATION ---
   const { provider, account, isInitializing } = useWeb3Connection();
 
   const contracts = useTeamContracts({
@@ -104,7 +97,7 @@ function TeamDashboard() {
   const isStakeholder = useMemo(() => {
     if (!account) return false;
     return stakeholders.some(
-      (s) => s.address.toLowerCase() === account.toLowerCase()
+      (s) => s.address.toLowerCase() === account.toLowerCase(),
     );
   }, [account, stakeholders]);
 
@@ -129,7 +122,7 @@ function TeamDashboard() {
 
   // --- PROPOSAL CREATION HELPER ---
   const createProposal = async (
-    data: Record<string, string>,
+    data: Record<string, string | string[] | Bot>,
     actionTitle: string,
   ) => {
     if (!contracts.governor || !contracts.registry || !account) {
@@ -145,6 +138,9 @@ function TeamDashboard() {
       let calldata: string = "";
       let description: string = "";
       let target: string = contractAddresses.devOpsGovernor;
+      const targets: string[] = [];
+      const values: bigint[] = [];
+      const calldatas: string[] = [];
       const value = 0n;
       const nonce = Date.now();
       const nonceStr = `\n\n# salt: ${nonce}`;
@@ -202,30 +198,144 @@ function TeamDashboard() {
           description = `Remove stakeholder ${data.address}${nonceStr}`;
           break;
 
-        case "Add Bot":
-          calldata = governorInterface.encodeFunctionData("addBot", [
-            data.address,
-          ]);
-          description = `Add bot ${data.address}${nonceStr}`;
-          break;
+        case "Add Bot": {
+          const roles = Array.isArray(data.role) ? data.role : [data.role];
+          const rolesToAdd: { hash: string; name: string }[] = [];
 
-        case "Remove Bot":
-          calldata = governorInterface.encodeFunctionData("removeBot", [
-            data.address,
-          ]);
-          description = `Remove bot ${data.address}${nonceStr}`;
-          break;
+          if (roles.includes("proposer")) {
+            rolesToAdd.push({
+              hash: ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE")),
+              name: "Proposer",
+            });
+          }
+          if (roles.includes("propagator")) {
+            rolesToAdd.push({
+              hash: ethers.keccak256(ethers.toUtf8Bytes("PROPAGATOR_ROLE")),
+              name: "Propagator",
+            });
+          }
 
-        case "Propose Package":
+          if (rolesToAdd.length === 0) {
+            alert("Please select at least one role");
+            return; // Don't proceed
+          }
+
+          rolesToAdd.forEach((r) => {
+            targets.push(contractAddresses.devOpsGovernor);
+            values.push(0n);
+            calldatas.push(
+              governorInterface.encodeFunctionData("addBot", [
+                data.address,
+                r.hash,
+              ]),
+            );
+          });
+
+          const rolesStr = rolesToAdd.map((r) => r.name).join(" & ");
+          description = `Add ${rolesStr} bot ${data.address}${nonceStr}`;
+          break;
+        }
+
+        case "Remove Bot": {
+          const bot = data.bot as Bot;
+          const rolesToRemove: { hash: string; name: string }[] = [];
+
+          if (bot.isProposer) {
+            rolesToRemove.push({
+              hash: ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE")),
+              name: "Proposer",
+            });
+          }
+          if (bot.isPropagator) {
+            rolesToRemove.push({
+              hash: ethers.keccak256(ethers.toUtf8Bytes("PROPAGATOR_ROLE")),
+              name: "Propagator",
+            });
+          }
+
+          rolesToRemove.forEach((role) => {
+            targets.push(contractAddresses.devOpsGovernor);
+            values.push(0n);
+            calldatas.push(
+              governorInterface.encodeFunctionData("removeBot", [
+                bot.address,
+                role.hash,
+              ]),
+            );
+          });
+
+          const rolesStr = rolesToRemove.map((r) => r.name).join(" & ");
+          description = `Remove ${rolesStr} role(s) from bot ${bot.address}${nonceStr}`;
+          break;
+        }
+
+        case "Propose Package": {
           if (!selectedProject) {
             alert("Please select a project first");
             return;
           }
 
-          target = selectedProject.beaconAddress;
-          calldata = beaconInterface.encodeFunctionData("upgradeTo", [
-            data.targetAddress,
-          ]);
+          const API_URL =
+            import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+          alert(
+            "Generating proposal calldata from IPFS package... This may take a moment.",
+          );
+
+          // Parse constructor arguments if provided
+          let constructorArgs: string[] | undefined;
+          if (
+            typeof data.constructorArgs === "string" &&
+            data.constructorArgs.trim()
+          ) {
+            try {
+              constructorArgs = JSON.parse(data.constructorArgs);
+              if (!Array.isArray(constructorArgs)) {
+                throw new Error("Constructor args must be a JSON array");
+              }
+            } catch (e) {
+              throw new Error(
+                `Invalid constructor args format. Must be a JSON array like ["0x123...", "value"]. Error: ${e}`,
+              );
+            }
+          }
+
+          const calldataResponse = await fetch(
+            `${API_URL}/proposals/generate-calldata`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ipfsCID: data.ipfsCID,
+                projectId: selectedProject.id,
+                registryAddress: contractAddresses.deploymentRegistry,
+                constructorArgs,
+              }),
+            },
+          );
+
+          if (!calldataResponse.ok) {
+            const errorData = await calldataResponse.json().catch(() => ({}));
+            throw new Error(
+              errorData.message || "Failed to generate calldata from package",
+            );
+          }
+
+          const calldataResult = await calldataResponse.json();
+
+          // Verify the expected address matches what the user provided
+          if (
+            calldataResult.expectedAddress.toLowerCase() !==
+            (data.targetAddress as string).toLowerCase()
+          ) {
+            throw new Error(
+              `Address mismatch! Expected: ${calldataResult.expectedAddress}, Provided: ${data.targetAddress}. ` +
+                `Make sure the target address is computed from the correct IPFS package.`,
+            );
+          }
+
+          target = calldataResult.target; // Registry address
+          calldata = calldataResult.calldata;
           description = `Upgrade ${selectedProject.name} to implementation ${data.targetAddress}${nonceStr}`;
 
           tx = await contracts.governor.proposePackage(
@@ -238,6 +348,7 @@ function TeamDashboard() {
             data.targetAddress,
           );
           break;
+        }
 
         default:
           console.error(`Unknown proposal action: ${actionTitle}`);
@@ -247,10 +358,14 @@ function TeamDashboard() {
 
       if (actionTitle !== "Propose Package") {
         console.log("Submitting standard proposal...");
+        const finalTargets = targets.length > 0 ? targets : [target];
+        const finalValues = values.length > 0 ? values : [value];
+        const finalCalldatas = calldatas.length > 0 ? calldatas : [calldata];
+
         tx = await contracts.governor.propose(
-          [target],
-          [value],
-          [calldata],
+          finalTargets,
+          finalValues,
+          finalCalldatas,
           description,
         );
       }
@@ -350,6 +465,17 @@ function TeamDashboard() {
         placeholder: "0x...",
         type: "text",
       },
+      {
+        name: "role",
+        label: "Bot Roles",
+        placeholder: "",
+        type: "checkbox-group",
+        multiSelect: true,
+        options: [
+          { value: "proposer", label: "Proposer (can submit package proposals)" },
+          { value: "propagator", label: "Propagator (can queue and execute)" },
+        ],
+      },
     ];
 
     setModalContent({
@@ -366,30 +492,10 @@ function TeamDashboard() {
     setModalOpen(true);
   };
 
-  const openRemoveBotModal = (address: string) => {
-    const fields: FormField[] = [
-      {
-        name: "address",
-        label: "Bot Address",
-        placeholder: "0x...",
-        type: "text",
-      },
-    ];
-
-    setModalContent({
-      title: "Remove Bot",
-      form: (
-        <ProposeActionForm
-          actionTitle="Remove Bot"
-          fields={fields}
-          onSubmit={(data) =>
-            createProposal({ ...data, address }, "Remove Bot")
-          }
-          onClose={() => setModalOpen(false)}
-        />
-      ),
-    });
-    setModalOpen(true);
+  const handleRemoveBot = (bot: Bot) => {
+    if (window.confirm(`Remove all roles from bot ${bot.address}?`)) {
+      createProposal({ bot }, "Remove Bot");
+    }
   };
 
   const openProposePackageModal = () => {
@@ -407,9 +513,16 @@ function TeamDashboard() {
       },
       {
         name: "targetAddress",
-        label: "Target Address",
-        placeholder: "0x...",
+        label: "Expected Implementation Address",
+        placeholder: "0x... (computed CREATE2 address)",
         type: "text",
+      },
+      {
+        name: "constructorArgs",
+        label: "Constructor Arguments (JSON array, optional)",
+        placeholder: '["0xProductAddress", "0xOtherArg"]',
+        type: "text",
+        optional: true,
       },
     ];
 
@@ -568,7 +681,7 @@ function TeamDashboard() {
         </main>
 
         <aside className="w-full xl:w-[420px] 2xl:w-[480px] border-t xl:border-t-0 xl:border-l border-gray-800 p-6 xl:p-8 space-y-6 xl:space-y-8 shrink-0 overflow-y-auto">
-          {/* GLOBAL: Governance Parameters */}
+          {/* Governance Parameters */}
           <GovernanceParametersCard
             governanceParams={governanceParams}
             isLoading={isLoadingGovernance}
@@ -578,13 +691,13 @@ function TeamDashboard() {
             canInteract={isStakeholder}
           />
 
-          {/* GLOBAL: Core Contracts */}
+          {/* Core Contracts */}
           <ContractAddresses
             governorAddress={contractAddresses.devOpsGovernor}
             registryAddress={contractAddresses.deploymentRegistry}
           />
 
-          {/* GLOBAL: Team & Roles */}
+          {/* Team & Roles */}
           <TeamList
             stakeholders={stakeholders}
             isLoading={isLoadingGovernance}
@@ -595,12 +708,12 @@ function TeamDashboard() {
             canInteract={isStakeholder}
           />
 
-          {/* GLOBAL: Bot Addresses */}
+          {/* Bot Addresses */}
           <BotList
             bots={bots}
             isLoading={isLoadingGovernance}
             onAddBot={openAddBotModal}
-            onRemoveBot={openRemoveBotModal}
+            onRemoveBot={handleRemoveBot}
             canInteract={isStakeholder}
           />
 

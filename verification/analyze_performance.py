@@ -5,7 +5,7 @@ import numpy as np
 def analyze_governance_performance():
     print("\n--- Governance Performance (Bottleneck) Analysis ---")
     
-    # 1. Load & Preprocess (Same as before)
+    # Load & Preprocess
     log_path = '../data/process_mining/governance_log.csv'
     try:
         log = pd.read_csv(log_path)
@@ -18,7 +18,7 @@ def analyze_governance_performance():
     # Deterministic sort to ensure accurate duration calc
     log = log.sort_values(by=['case:concept:name', 'time:timestamp', 'concept:name'])
 
-    # Fix Upgrades (Merge into parent proposal)
+    # Fix upgrades
     executions = log[log['concept:name'] == 'ProposalExecuted']
     for index, row in log[log['case:concept:name'] == 'SYSTEM_UPGRADE'].iterrows():
         match = executions[executions['time:timestamp'] == row['time:timestamp']]
@@ -28,12 +28,11 @@ def analyze_governance_performance():
     
     log = log.sort_values(by=['case:concept:name', 'time:timestamp'])
     
-    # 2. Convert to Event Log
+    # Convert to Event Log
     formatted_log = pm4py.format_dataframe(log, case_id='case:concept:name', activity_key='concept:name', timestamp_key='time:timestamp')
     event_log = pm4py.convert_to_event_log(formatted_log)
 
-    # 3. Calculate Case Durations
-    # How long does a whole proposal take?
+    # Calculate Case Durations
     all_durations = []
     for trace in event_log:
         start = trace[0]['time:timestamp']
@@ -48,8 +47,7 @@ def analyze_governance_performance():
     print(f"⏱️  Average Duration: {avg_duration:.2f} hours")
     print(f"🐢 Longest Proposal: {max_duration:.2f} hours")
 
-    # 4. Bottleneck Detection (Transition Times)
-    # This maps "Activity A -> Activity B" and calculates average time between them.
+    # Bottleneck Detection (Transition Times)
     print("\n--- Transition Bottlenecks (Avg Time) ---")
     
     # PM4Py's DFG (Directly Follows Graph) performance metric
@@ -65,8 +63,7 @@ def analyze_governance_performance():
         if mean_hours > 0.01: # Filter out instant events
             print(f"{source} -> {target}: {mean_hours:.2f} hours")
 
-    # 5. Visual Output (Optional)
-    # Saves a heatmap of where time is spent
+    # Visual Output
     pm4py.save_vis_performance_dfg(performance_dfg[0], start_activities, end_activities, 'output/governance_performance.png')
     print("\n✅ Saved bottleneck map to 'governance_performance.png'")
 

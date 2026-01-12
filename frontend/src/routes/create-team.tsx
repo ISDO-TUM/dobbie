@@ -46,7 +46,7 @@ type Step1Form = z.infer<typeof step1Schema>;
 
 interface Step2FormInput {
   stakeholders: { walletAddress: string }[];
-  bots: { address: string; role: "proposer" | "executor"; name?: string }[];
+  bots: { address: string; roles: ("proposer" | "propagator")[]; name?: string }[];
   votingDelay: number | string;
   votingPeriod: number | string;
   minDelay: number | string;
@@ -67,7 +67,7 @@ const step2Schema = z.object({
       address: z
         .string()
         .refine((addr) => isAddress(addr), "Invalid Ethereum address"),
-      role: z.enum(["proposer", "executor"]),
+      roles: z.array(z.enum(["proposer", "propagator"])).min(1, "Select at least one role"),
       name: z.string().optional(),
     }),
   ),
@@ -183,7 +183,12 @@ function CreateTeam() {
           },
           teamName: step1Data.teamName,
           stakeholders: step2Data.stakeholders.map((s) => s.walletAddress),
-          bots: step2Data.bots,
+          bots: step2Data.bots.flatMap((bot) =>
+            bot.roles.map((role) => ({
+              address: bot.address,
+              role: role,
+            })),
+          ),
           votingDelay: step2Data.votingDelay,
           votingPeriod: step2Data.votingPeriod,
           minDelay: step2Data.minDelay,
@@ -437,7 +442,7 @@ function Step2({
   };
 
   const addBot = () =>
-    setValue("bots", [...bots, { address: "", role: "proposer", name: "" }]);
+    setValue("bots", [...bots, { address: "", roles: ["proposer"], name: "" }]);
   const removeBot = (idx: number) =>
     setValue(
       "bots",
@@ -540,28 +545,64 @@ function Step2({
                 </p>
               )}
               {bots.map((bot, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <select
-                    value={bot.role}
-                    onChange={(e) => updateBot(i, "role", e.target.value)}
-                    className="px-2 py-2 bg-gray-800 border border-gray-700 rounded text-xs text-white uppercase font-bold focus:border-purple-500 focus:outline-none"
-                  >
-                    <option value="proposer">Proposer</option>
-                    <option value="executor">Executor</option>
-                  </select>
-                  <input
-                    placeholder="Bot Wallet Address"
-                    value={bot.address}
-                    onChange={(e) => updateBot(i, "address", e.target.value)}
-                    className="flex-1 px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white text-sm font-mono focus:border-purple-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeBot(i)}
-                    className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-900/10 rounded transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={i} className="flex flex-col gap-1">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex flex-col gap-1">
+                      <label className="flex items-center gap-2 cursor-pointer bg-gray-800 border border-gray-700 rounded px-2 py-1 hover:border-blue-500 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={bot.roles.includes("proposer")}
+                          onChange={(e) => {
+                            const newRoles = e.target.checked
+                              ? [...bot.roles, "proposer"]
+                              : bot.roles.filter((r) => r !== "proposer");
+                            // @ts-expect-error - Valid role assignment
+                            updateBot(i, "roles", newRoles);
+                          }}
+                          className="rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
+                        />
+                        <span className="text-[10px] uppercase font-bold text-blue-400">
+                          Proposer
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer bg-gray-800 border border-gray-700 rounded px-2 py-1 hover:border-purple-500 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={bot.roles.includes("propagator")}
+                          onChange={(e) => {
+                            const newRoles = e.target.checked
+                              ? [...bot.roles, "propagator"]
+                              : bot.roles.filter((r) => r !== "propagator");
+                            // @ts-expect-error - Valid role assignment
+                            updateBot(i, "roles", newRoles);
+                          }}
+                          className="rounded border-gray-600 text-purple-500 focus:ring-purple-500 bg-gray-700"
+                        />
+                        <span className="text-[10px] uppercase font-bold text-purple-400">
+                          Propagator
+                        </span>
+                      </label>
+                    </div>
+                    <input
+                      placeholder="Bot Wallet Address"
+                      value={bot.address}
+                      onChange={(e) => updateBot(i, "address", e.target.value)}
+                      className="flex-1 px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white text-sm font-mono focus:border-purple-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBot(i)}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-900/10 rounded transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {/* Validation error for roles */}
+                  {!bot.roles.length && (
+                    <p className="text-[10px] text-red-400 pl-2">
+                      Select at least one role
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

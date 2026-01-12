@@ -30,6 +30,7 @@ interface ProposalVerificationModalProps {
   proposalId: string;
   targetAddress: string;
   ipfsCID: string;
+  projectId: string;
   contracts: Contracts;
   account: string | null;
   onVoteSuccess: () => void;
@@ -49,6 +50,7 @@ export function ProposalVerificationModal({
   proposalId,
   targetAddress,
   ipfsCID,
+  projectId,
   contracts,
   account,
   onVoteSuccess,
@@ -129,7 +131,6 @@ export function ProposalVerificationModal({
   // Check for running tests and start polling if needed
   useEffect(() => {
     if (!isOpen) {
-      // Clear polling when modal closes
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
@@ -137,7 +138,6 @@ export function ProposalVerificationModal({
       return;
     }
 
-    // Reset initialization state when modal opens
     setIsInitializing(true);
 
     const checkAndPoll = async () => {
@@ -176,7 +176,6 @@ export function ProposalVerificationModal({
     };
   }, [isOpen, proposalId, fetchStatus, updateStepsFromRecord]);
 
-  // Cancel test handler
   const cancelTest = async (type: "basic" | "custom") => {
     try {
       const res = await fetch(`${API_URL}/proposals/${proposalId}/cancel`, {
@@ -209,7 +208,7 @@ export function ProposalVerificationModal({
     const res = await fetch(`${API_URL}/proposals/${proposalId}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetAddress, ipfsCID, governorAddress }),
+      body: JSON.stringify({ targetAddress, ipfsCID, governorAddress, projectId }),
     });
 
     if (!res.ok) {
@@ -429,7 +428,6 @@ export function ProposalVerificationModal({
       );
     }
 
-    // Show cancel button when loading
     if (isLoading && onCancel) {
       return (
         <motion.div

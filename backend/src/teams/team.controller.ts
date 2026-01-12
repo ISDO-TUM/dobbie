@@ -2,8 +2,11 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
+  Query,
   NotFoundException,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
@@ -17,7 +20,6 @@ export class TeamController {
     private readonly deploymentService: DeploymentService,
   ) {}
 
-  // --- Step 1: Prepare GitHub (Only used during Creation) ---
   @Post('prepare')
   async prepareInfrastructure(
     @Body() body: { token: string; name: string; members: string[] },
@@ -25,14 +27,11 @@ export class TeamController {
     return this.teamService.prepareInfrastructure(body);
   }
 
-  // --- Step 2: Get Contract Blueprints ---
   @Get('artifacts')
   getArtifacts() {
     return this.deploymentService.getAllArtifacts();
   }
 
-  // --- Step 3: Register/Join Team ---
-  // This handles BOTH "Creating New" and "Joining Existing"
   @Post('register')
   async register(@Body() dto: CreateTeamDto) {
     return this.teamService.registerTeam({
@@ -40,15 +39,14 @@ export class TeamController {
       governorAddress: dto.governorAddress,
       registryAddress: dto.registryAddress,
       repoUrl: dto.repoUrl,
-      deploymentBlock: dto.deploymentBlock, // ✅ Pass it through
+      deploymentBlock: dto.deploymentBlock,
       isImport: dto.isImport,
     });
   }
 
-  // --- Standard Read Operations ---
   @Get()
-  findAll() {
-    return this.teamService.findAll();
+  findAll(@Query('includeArchived') includeArchived?: string) {
+    return this.teamService.findAll(includeArchived === 'true');
   }
 
   @Get(':id')
@@ -56,5 +54,20 @@ export class TeamController {
     const team = await this.teamService.findOne(+id);
     if (!team) throw new NotFoundException(`Team #${id} not found`);
     return team;
+  }
+
+  @Patch(':id/archive')
+  async archive(@Param('id') id: string) {
+    return this.teamService.archiveTeam(+id);
+  }
+
+  @Patch(':id/unarchive')
+  async unarchive(@Param('id') id: string) {
+    return this.teamService.unarchiveTeam(+id);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    return this.teamService.deleteTeam(+id);
   }
 }

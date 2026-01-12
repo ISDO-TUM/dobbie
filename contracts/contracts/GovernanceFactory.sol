@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/IAccessControl.sol";
  * @title GovernanceFactory
  * @notice A minimal factory that deploys pre-compiled contracts using CREATE.
  * @dev Bytecodes are passed as calldata to keep the factory small.
- * This eliminates 55 MetaMask prompts down to just 1.
+ * This eliminates many MetaMask prompts down to just 1.
  */
 contract GovernanceFactory {
     // --- ROLE CONSTANTS ---

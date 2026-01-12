@@ -11,7 +11,7 @@ import {
 } from "viem";
 
 import registryArtifact from "../artifacts/contracts/DeploymentRegistry.sol/DeploymentRegistry.json" with { type: "json" };
-import appRegistryV1Artifact from "../artifacts/contracts/test/AppRegistryV1.sol/AppRegistryV1.json" with { type: "json" };
+import versionManifestV1Artifact from "../artifacts/contracts/test/VersionManifestV1.sol/VersionManifestV1.json" with { type: "json" };
 
 describe("DeploymentRegistry & App Registry Pattern", function () {
   let viem: any, _publicClient: any, testClient: any;
@@ -76,31 +76,52 @@ describe("DeploymentRegistry & App Registry Pattern", function () {
       "0x0000000000000000000000000000000000000000"
     );
 
-    // 2. Prepare Atomic Upgrade (Deploy AppRegistryV1 pointing to ProductV1)
-    const creationCode = appRegistryV1Artifact.bytecode as `0x${string}`;
+    // 2. Prepare Atomic Upgrade (Deploy AppRegistryV1 manifest with ProductV1)
+    const creationCode = versionManifestV1Artifact.bytecode as `0x${string}`;
+
+    // Constructor args: (bytes32 projectId, string versionTag, string[] names, address[] addresses)
+    const contractNames = ["DummyProductV1"];
+    const contractAddresses = [productV1.address];
+
     const constructorArgs = encodeAbiParameters(
-      [{ type: "address" }],
-      [productV1.address]
+      [
+        { type: "bytes32" },
+        { type: "string" },
+        { type: "string[]" },
+        { type: "address[]" },
+      ],
+      [projectId, "v1.0.0", contractNames, contractAddresses]
     );
-    const fullBytecode =
+    const manifestBytecode =
       `${creationCode}${constructorArgs.substring(2)}` as `0x${string}`;
 
-    const salt = keccak256(toHex("Version1.0.0"));
+    const manifestSalt = keccak256(toHex("Version1.0.0"));
+    const versionTag = "v1.0.0";
 
-    // Predict Address
-    const expectedAddress = getContractAddress({
-      bytecode: fullBytecode,
+    // Predict Manifest Address
+    const expectedManifestAddress = getContractAddress({
+      bytecode: manifestBytecode,
       from: registry.address,
       opcode: "CREATE2",
-      salt: salt,
+      salt: manifestSalt,
     });
 
+    // No application contracts in this simple example, just the manifest
+    const contracts: any[] = [];
+
     // 3. Propose via Governance
-    // Function: deployDeterministicAndUpgrade(projectId, salt, bytecode, expectedAddress)
+    // Function: batchDeployAndUpgrade(projectId, contracts[], manifestBytecode, manifestSalt, expectedManifestAddress, versionTag)
     const upgradeCallData = encodeFunctionData({
       abi: registryArtifact.abi,
-      functionName: "deployDeterministicAndUpgrade",
-      args: [projectId, salt, fullBytecode, expectedAddress],
+      functionName: "batchDeployAndUpgrade",
+      args: [
+        projectId,
+        contracts,
+        manifestBytecode,
+        manifestSalt,
+        expectedManifestAddress,
+        versionTag,
+      ],
     });
 
     const description = "Upgrade to V1";
@@ -112,7 +133,7 @@ describe("DeploymentRegistry & App Registry Pattern", function () {
         description,
         projectId,
         "QmHash",
-        expectedAddress,
+        expectedManifestAddress,
       ],
       { account: stakeholder1.account }
     );
@@ -139,17 +160,24 @@ describe("DeploymentRegistry & App Registry Pattern", function () {
       { account: stakeholder1.account }
     );
 
-    // 5. Verify the Proxy now points to AppRegistryV1
-    // We cast the Proxy address to the AppRegistryV1 ABI
-    const proxyAsApp = await viem.getContractAt(
-      "AppRegistryV1",
-      projectProxyAddr
+    // 5. Verify the upgrade was successful
+    // Get the current implementation address from the registry
+    const currentVersion = await registry.read.getCurrentVersion([projectId]);
+    expect(currentVersion).to.equal(expectedManifestAddress);
+
+    // Read directly from the manifest implementation (not through proxy)
+    const manifest = await viem.getContractAt(
+      "VersionManifestV1",
+      currentVersion
     );
 
-    // The proxy should now allow us to read 'version' and 'product' from the implementation
-    expect(await proxyAsApp.read.version()).to.equal("1.0.0");
-    expect(await proxyAsApp.read.product()).to.equal(
-      getAddress(productV1.address)
-    );
+    // The manifest should have the correct data
+    expect(await manifest.read.VERSION()).to.equal("1.0.0");
+    expect(await manifest.read.versionTag()).to.equal("v1.0.0");
+    expect(await manifest.read.projectId()).to.equal(projectId);
+
+    // Check that DummyProductV1 is registered in the manifest
+    const productAddr = await manifest.read.getContract(["DummyProductV1"]);
+    expect(productAddr).to.equal(getAddress(productV1.address));
   });
 });

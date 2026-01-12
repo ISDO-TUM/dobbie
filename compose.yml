@@ -1,47 +1,22 @@
 version: "3.8"
 
 services:
-  # 🔗 1. LOCAL BLOCKCHAIN (The Foundation)
-  chain:
-    build: ./contracts
-    container_name: sovereign-chain
-    restart: unless-stopped
-    ports:
-      - "8545:8545" # Expose RPC to host (Metamask)
-    volumes:
-      - ./.env:/app/.env # Shared Keys
-      - ./contracts/ignition/deployments:/app/ignition/deployments # Persist Deployments
-      - ./abis:/app/abis_out # Folder to sync ABIs to (optional helper)
-    networks:
-      - sovereign-net
 
-  # 🤖 2. THE AGENT (Backend)
+  # 🤖 1. THE SOVEREIGN AGENT (Backend)
   backend:
     build: ./backend
     container_name: sovereign-agent
     restart: unless-stopped
-    depends_on:
-      - chain
     ports:
-      - "3000:3000" # API Access
+      - "3001:3001"
     volumes:
-      # A. Configuration
       - ./.env:/app/.env
-
-      # B. Shared Assets & State
-      - ./abis:/app/src/abis # Injects Root ABIs into src/abis
-      - ./data/sovereign_db.sqlite:/app/sovereign_db.sqlite # Persist DB
-
-      # C. The "Docker-in-Docker" Trick
-      # We mount the HOST's docker socket. This allows the container
-      # to command the Host Docker Daemon to spawn verification sandboxes.
+      - ./data/sovereign_db.sqlite:/app/sovereign_db.sqlite
       - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - LOCAL_RPC_URL=http://chain:8545
     networks:
       - sovereign-net
 
-  # 💻 3. THE DASHBOARD (Frontend)
+  # 💻 2. THE DASHBOARD (Frontend)
   frontend:
     build: ./frontend
     container_name: sovereign-ui
@@ -49,13 +24,11 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:8080" # UI Access
+      - "5173:5173"
     volumes:
-      - ./.env:/app/.env # Public Keys
-      - ./abis:/app/src/abis # Injects Root ABIs into src/abis
+      - ./.env:/app/.env
     environment:
-      # Tell the UI where the API is (Client-side env var)
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=http://localhost:3001
     networks:
       - sovereign-net
 

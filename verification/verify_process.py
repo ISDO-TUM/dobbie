@@ -6,18 +6,14 @@ from pm4py.objects.process_tree.obj import ProcessTree, Operator
 def preprocess_logs(gov_path, identity_path):
     print("... Loading and preprocessing logs ...")
     
-    # 1. Load Governance Log
+    # Load Governance Log
     gov_log = pd.read_csv(gov_path)
     gov_log['time:timestamp'] = pd.to_datetime(gov_log['time:timestamp'])
     
-    # 2. FORCE DETERMINISTIC SORTING
-    # Sort by Case ID, then Timestamp, then Activity Name.
-    # This guarantees 'ProposalCreated' (C) always comes BEFORE 'ProposalPackageCreated' (P)
-    # when timestamps are identical.
+    # Force deterministic sorting
     gov_log = gov_log.sort_values(by=['case:concept:name', 'time:timestamp', 'concept:name'])
     
-    # 3. Fix the "SYSTEM_UPGRADE" disconnected traces
-    # Logic: Merge upgrade events into their parent Proposal ID
+    # Fix disconnected traces
     executions = gov_log[gov_log['concept:name'] == 'ProposalExecuted']
     
     for index, row in gov_log[gov_log['case:concept:name'] == 'SYSTEM_UPGRADE'].iterrows():
@@ -28,13 +24,13 @@ def preprocess_logs(gov_path, identity_path):
             proposal_id = match.iloc[0]['case:concept:name']
             gov_log.at[index, 'case:concept:name'] = proposal_id
             
-            # TRICK: Subtract 1 millisecond so Upgrade appears BEFORE Execute
+            # Subtract 1 millisecond so Upgrade appears before Execute
             gov_log.at[index, 'time:timestamp'] -= pd.Timedelta(milliseconds=1)
             
     # Re-sort after the timestamp tweak to ensure Upgrade -> Execute order is preserved
     gov_log = gov_log.sort_values(by=['case:concept:name', 'time:timestamp'])
 
-    # 4. Load Identity Log
+    # Load Identity Log
     id_log = pd.read_csv(identity_path)
     id_log['time:timestamp'] = pd.to_datetime(id_log['time:timestamp'])
     
@@ -43,10 +39,10 @@ def preprocess_logs(gov_path, identity_path):
 def verify_governance(log):
     print("\n--- Verifying Governance Process ---")
     
-    # --- DEFINE THE MODEL ---
+    # Define the model
     
-    # 1. Creation Phase (Simplified)
-    # "Must start with ProposalCreated. Then, OPTIONALLY, ProposalPackageCreated."
+    # Creation Phase
+    # Must start with ProposalCreated. Then, OPTIONALLY, ProposalPackageCreated.
     # Since we forced the sort order (C before P), this Sequence is 100% safe.
     creation_phase = ProcessTree(operator=Operator.SEQUENCE, children=[
         ProcessTree(label="ProposalCreated"), 
@@ -56,13 +52,13 @@ def verify_governance(log):
         ])
     ])
 
-    # 2. Voting Phase (Loop)
+    # Voting Phase
     voting_phase = ProcessTree(operator=Operator.LOOP, children=[
         ProcessTree(label=None), 
         ProcessTree(label="VoteCast") 
     ])
 
-    # 3. Execution Phase
+    # Execution Phase
     execution_phase = ProcessTree(operator=Operator.SEQUENCE, children=[
         ProcessTree(label="ProposalQueued"),
         ProcessTree(operator=Operator.XOR, children=[ # Optional Upgrade Event
@@ -83,7 +79,7 @@ def verify_governance(log):
         ])
     ])
 
-    # --- VERIFY ---
+    # Verify
     log = log.dropna(subset=['case:concept:name']) 
     formatted_log = pm4py.format_dataframe(log, case_id='case:concept:name', activity_key='concept:name', timestamp_key='time:timestamp')
     event_log = pm4py.convert_to_event_log(formatted_log)

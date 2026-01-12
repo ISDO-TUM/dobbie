@@ -15,7 +15,7 @@ contract DevOpsGovernor is
     // --- ROLES ---
     bytes32 public constant STAKEHOLDER_ROLE = keccak256("STAKEHOLDER_ROLE");
     bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
-    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
+    bytes32 public constant PROPAGATOR_ROLE = keccak256("PROPAGATOR_ROLE");
 
     // --- STATE ---
     // REMOVED: mapping(address => string) public stakeholderUsernames;
@@ -57,11 +57,11 @@ contract DevOpsGovernor is
         _;
     }
 
-    modifier onlyExecutorOrStakeholder() {
+    modifier onlyPropagatorOrStakeholder() {
         require(
-            hasRole(EXECUTOR_ROLE, msg.sender) ||
+            hasRole(PROPAGATOR_ROLE, msg.sender) ||
                 hasRole(STAKEHOLDER_ROLE, msg.sender),
-            "Governor: caller is not an executor or stakeholder"
+            "Governor: caller is not a propagator or stakeholder"
         );
         _;
     }
@@ -72,7 +72,7 @@ contract DevOpsGovernor is
         address[] memory _initialStakeholders,
         // REMOVED: string[] memory _usernames
         address[] memory _proposerBots,
-        address[] memory _executorBots,
+        address[] memory _propagatorBots,
         uint256 initialVotingDelay,
         uint256 initialVotingPeriod
     ) Governor(name) GovernorTimelockControl(timelock) {
@@ -87,7 +87,7 @@ contract DevOpsGovernor is
 
             _grantRole(STAKEHOLDER_ROLE, stakeholder);
             _grantRole(PROPOSER_ROLE, stakeholder);
-            _grantRole(EXECUTOR_ROLE, stakeholder);
+            _grantRole(PROPAGATOR_ROLE, stakeholder);
 
             emit StakeholderAdded(stakeholder);
         }
@@ -99,10 +99,10 @@ contract DevOpsGovernor is
             emit BotAdded(_proposerBots[i], PROPOSER_ROLE);
         }
 
-        // 3. Setup Executor Bots
-        for (uint256 i = 0; i < _executorBots.length; i++) {
-            _grantRole(EXECUTOR_ROLE, _executorBots[i]);
-            emit BotAdded(_executorBots[i], EXECUTOR_ROLE);
+        // 3. Setup Propagator Bots
+        for (uint256 i = 0; i < _propagatorBots.length; i++) {
+            _grantRole(PROPAGATOR_ROLE, _propagatorBots[i]);
+            emit BotAdded(_propagatorBots[i], PROPAGATOR_ROLE);
         }
     }
 
@@ -125,7 +125,7 @@ contract DevOpsGovernor is
     ) external onlyGovernance {
         require(_botAddress != address(0), "Cannot add zero address");
         require(
-            _role == PROPOSER_ROLE || _role == EXECUTOR_ROLE,
+            _role == PROPOSER_ROLE || _role == PROPAGATOR_ROLE,
             "Invalid bot role"
         );
         _grantRole(_role, _botAddress);
@@ -224,7 +224,7 @@ contract DevOpsGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) public override(Governor) onlyExecutorOrStakeholder returns (uint256) {
+    ) public override(Governor) onlyPropagatorOrStakeholder returns (uint256) {
         return super.queue(targets, values, calldatas, descriptionHash);
     }
 
@@ -237,7 +237,7 @@ contract DevOpsGovernor is
         public
         payable
         override(Governor)
-        onlyExecutorOrStakeholder
+        onlyPropagatorOrStakeholder
         returns (uint256)
     {
         return super.execute(targets, values, calldatas, descriptionHash);

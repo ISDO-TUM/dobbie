@@ -10,8 +10,6 @@ import {
   getCreateAddress,
 } from "ethers";
 
-// --- 1. TYPES ---
-
 export interface ContractArtifact {
   abi: InterfaceAbi;
   bytecode: string;
@@ -19,7 +17,7 @@ export interface ContractArtifact {
 
 export interface BotConfig {
   address: string;
-  role: "proposer" | "executor";
+  role: "proposer" | "propagator";
 }
 
 interface DeployArgs {
@@ -42,8 +40,6 @@ interface DeployResult {
   deploymentBlock: number;
 }
 
-// --- 2. FACTORY ABI (for event parsing) ---
-
 const FACTORY_EVENTS_ABI = [
   "event Step(uint8 indexed stepNumber, uint8 totalSteps, string message)",
   "event ContractDeployed(string contractType, address indexed contractAddress)",
@@ -51,8 +47,6 @@ const FACTORY_EVENTS_ABI = [
   "event RoleRenounced(string contractName, string roleName, address indexed account)",
   "event DeploymentComplete(address indexed timelockAddress, address indexed governorAddress, address indexed registryAddress)",
 ];
-
-// --- 3. HELPER: Parse factory events from receipt ---
 
 interface ParsedEvent {
   name: string;
@@ -73,7 +67,6 @@ function parseFactoryEvents(
       });
       if (parsed) {
         const args: Record<string, unknown> = {};
-        // Use the fragment inputs to get named args properly in ethers v6
         parsed.fragment.inputs.forEach((input, index) => {
           args[input.name] = parsed.args[index];
         });
@@ -86,8 +79,6 @@ function parseFactoryEvents(
 
   return events;
 }
-
-// --- 4. HELPER: Process events and call onProgress ---
 
 function processEventsForProgress(
   events: ParsedEvent[],
@@ -149,8 +140,6 @@ function processEventsForProgress(
   return result;
 }
 
-// --- 5. HOOK IMPLEMENTATION ---
-
 export function useDeployer() {
   const [isDeploying, setIsDeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,8 +168,8 @@ export function useDeployer() {
         .filter((b) => b.role === "proposer")
         .map((b) => b.address);
 
-      const executorBots = args.bots
-        .filter((b) => b.role === "executor")
+      const propagatorBots = args.bots
+        .filter((b) => b.role === "propagator")
         .map((b) => b.address);
 
       // =========================================================
@@ -214,25 +203,6 @@ export function useDeployer() {
         [args.minDelay, [], [], factoryAddress], // factory is temp admin
       );
 
-      // Governor constructor: (string name, TimelockController timelock, address[] stakeholders, address[] proposerBots, address[] executorBots, uint256 votingDelay, uint256 votingPeriod)
-      // We need to compute the timelock address first (CREATE uses nonce)
-      // Actually, we pass the args and let the factory handle the order
-      // The factory deploys: timelock first, then uses its address for governor
-
-      // For the factory, we need to encode governor args with a PLACEHOLDER for timelock
-      // But the factory's _deploy function just concatenates bytecode + args
-      // So we need to pre-encode args knowing the timelock address...
-
-      // SOLUTION: We use a 2-step approach in the factory call
-      // Pass the args that DON'T depend on other addresses, factory fills in the rest
-
-      // Actually, looking at the factory, it takes raw bytecodes and pre-encoded args
-      // The challenge is governor needs timelock address which isn't known yet
-
-      // Let me use CREATE2 to make addresses deterministic, OR
-      // Have the factory encode args internally
-
-      // Compute expected addresses using CREATE nonce
       // Factory nonce 1 = timelock, nonce 2 = governor, nonce 3 = registry
       const timelockAddress = getCreateAddress({
         from: factoryAddress,
@@ -260,7 +230,7 @@ export function useDeployer() {
           timelockAddress,
           args.stakeholders,
           proposerBots,
-          executorBots,
+          propagatorBots,
           args.votingDelay,
           args.votingPeriod,
         ],
@@ -302,7 +272,7 @@ export function useDeployer() {
       onProgress("");
 
       // =========================================================
-      // STEP 3: PARSE EVENTS FOR PROGRESS LOGS
+      // STEP 4: PARSE EVENTS FOR PROGRESS LOGS
       // =========================================================
       const events = parseFactoryEvents(receipt, factory);
       const result = processEventsForProgress(events, onProgress);

@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getCreate2Address, keccak256, toBytes, Hex } from 'viem';
+import {
+  getCreate2Address,
+  keccak256,
+  toBytes,
+  Hex,
+  encodeFunctionData,
+  encodeAbiParameters,
+  parseAbiParameters,
+} from 'viem';
 import { IpfsService } from '../ipfs/ipfs.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,8 +50,6 @@ function execWithCancel(
   return { promise, process: childProcess! };
 }
 
-// --- TYPES ---
-
 export interface VerificationResult {
   proposalId: string;
   math: { success: boolean; message: string };
@@ -53,7 +59,12 @@ export interface VerificationResult {
   };
 }
 
-// --- CUSTOM ERRORS ---
+interface ContractConfig {
+  name: string;
+  constructorArgs?: any[];
+  constructorTypes?: string;
+}
+
 class MathMismatchError extends Error {
   constructor(message: string) {
     super(message);
@@ -128,14 +139,12 @@ export class VerificationService {
     return { cancelled: true, message: 'Tests cancelled' };
   }
 
-  // ===========================================================================
-  // 1. MATH CHECK WITH DB PERSISTENCE
-  // ===========================================================================
   async runMathCheck(
     proposalId: string,
     targetAddress: string,
     ipfsCID: string,
     governorAddress: string,
+    projectId: string,
   ): Promise<Pick<VerificationResult, 'math'>> {
     let record = await this.verificationRepo.findOne({
       where: { proposalId },
@@ -177,13 +186,19 @@ export class VerificationService {
     let packagePath: string | undefined;
     try {
       this.logger.debug(`[${proposalId}] Running Math Check...`);
-      packagePath = await this.ipfsService.fetchPackage(ipfsCID);
+      const pkg = await this.ipfsService.fetchPackage(ipfsCID);
+      packagePath = pkg.path;
+
+      // The deployment logic uses the Manifest CID (if available) as the "PACKAGE_CID".
+      // Therefore, we must use the CID from the proposal (ipfsCID) to calculate matching salts.
+      const resolvedCID = ipfsCID;
 
       this.verifyMath(
         packagePath,
-        ipfsCID,
+        resolvedCID,
         targetAddress,
         dynamicRegistryAddress,
+        projectId,
       );
 
       const successMessage = 'Bytecode hash matched CREATE2 target.';
@@ -205,9 +220,101 @@ export class VerificationService {
     }
   }
 
-  // ===========================================================================
-  // 2. BASIC TESTS WITH DB PERSISTENCE
-  // ===========================================================================
+  async generateProposalCalldata(
+    ipfsCID: string,
+    projectId: string,
+    registryAddress: string,
+    constructorArgs?: string[],
+  ): Promise<{
+    target: string;
+    calldata: string;
+    expectedAddress: string;
+    salt: string;
+  }> {
+    let packagePath: string | undefined;
+
+    try {
+      this.logger.debug(`Generating calldata for CID: ${ipfsCID}`);
+      const pkg = await this.ipfsService.fetchPackage(ipfsCID);
+      packagePath = pkg.path;
+      // Use resolved CID to ensure salt consistency
+      const resolvedCID = pkg.cid;
+
+      const artifactPath = this.findArtifact(packagePath);
+      const artifactContent = fs.readFileSync(artifactPath, 'utf8');
+      const artifact = JSON.parse(artifactContent);
+      const creationCode = artifact.bytecode || artifact.data?.bytecode?.object;
+
+      if (!creationCode) {
+        throw new Error('Bytecode not found in artifact.');
+      }
+
+      // Handle constructor arguments if provided
+      let fullBytecode: Hex = creationCode as Hex;
+
+      if (constructorArgs && constructorArgs.length > 0) {
+        // Get constructor ABI from artifact
+        const constructorAbi = artifact.abi?.find(
+          (item: { type: string }) => item.type === 'constructor',
+        );
+
+        if (constructorAbi && constructorAbi.inputs?.length > 0) {
+          // Encode constructor arguments
+          const encodedArgs = encodeAbiParameters(
+            constructorAbi.inputs,
+            constructorArgs,
+          );
+
+          // Append encoded args to bytecode (remove 0x prefix from args)
+          fullBytecode = `${creationCode}${encodedArgs.substring(2)}` as Hex;
+
+          this.logger.debug(
+            `Constructor args encoded: ${constructorArgs.length} arguments`,
+          );
+        } else {
+          this.logger.warn(
+            'Constructor args provided but no constructor found in ABI',
+          );
+        }
+      }
+
+      const salt = keccak256(toBytes(resolvedCID));
+
+      const expectedAddress = getCreate2Address({
+        from: registryAddress as Hex,
+        salt: salt,
+        bytecode: fullBytecode,
+      });
+
+      // Encode the deployDeterministicAndUpgrade call
+      const calldata = encodeFunctionData({
+        abi: [
+          {
+            type: 'function',
+            name: 'deployDeterministicAndUpgrade',
+            inputs: [
+              { name: 'projectId', type: 'bytes32' },
+              { name: 'salt', type: 'bytes32' },
+              { name: 'bytecode', type: 'bytes' },
+              { name: 'expectedAddress', type: 'address' },
+            ],
+          },
+        ],
+        functionName: 'deployDeterministicAndUpgrade',
+        args: [projectId as Hex, salt, fullBytecode, expectedAddress],
+      });
+
+      return {
+        target: registryAddress,
+        calldata,
+        expectedAddress,
+        salt,
+      };
+    } finally {
+      await this.cleanup(packagePath);
+    }
+  }
+
   async runBasicTests(
     proposalId: string,
     ipfsCID: string,
@@ -236,7 +343,8 @@ export class VerificationService {
 
     try {
       this.logger.debug(`[${proposalId}] Running Basic Tests...`);
-      packagePath = await this.ipfsService.fetchPackage(ipfsCID);
+      const pkg = await this.ipfsService.fetchPackage(ipfsCID);
+      packagePath = pkg.path;
       imageName = `sovereign-verify-${proposalId}`;
 
       await this.buildDockerImage(packagePath, imageName);
@@ -276,9 +384,6 @@ export class VerificationService {
     }
   }
 
-  // ===========================================================================
-  // 3. CUSTOM TESTS WITH DB PERSISTENCE & EMPTY HANDLING
-  // ===========================================================================
   async runCustomTests(
     proposalId: string,
     ipfsCID: string,
@@ -307,7 +412,8 @@ export class VerificationService {
 
     try {
       this.logger.debug(`[${proposalId}] Running Custom Tests...`);
-      packagePath = await this.ipfsService.fetchPackage(ipfsCID);
+      const pkg = await this.ipfsService.fetchPackage(ipfsCID);
+      packagePath = pkg.path;
       imageName = `sovereign-verify-${proposalId}`;
 
       await this.buildDockerImage(packagePath, imageName);
@@ -354,47 +460,114 @@ export class VerificationService {
     }
   }
 
-  // ===========================================================================
-  // HELPER METHODS
-  // ===========================================================================
+  // ---- HELPER METHODS ----
 
   private verifyMath(
     packagePath: string,
     cid: string,
     onChainTarget: string,
     dynamicRegistryAddress: string,
+    projectId: string,
   ) {
-    const registryAddress = dynamicRegistryAddress;
+    const registryAddress = dynamicRegistryAddress as Hex;
 
     if (!registryAddress) {
       throw new Error('DEPLOYMENT_REGISTRY_ADDRESS not configured');
     }
 
-    const artifactPath = this.findArtifact(packagePath);
-    const artifactContent = fs.readFileSync(artifactPath, 'utf8');
-    const artifact = JSON.parse(artifactContent);
-    const bytecode = artifact.bytecode || artifact.data?.bytecode?.object;
-
-    if (!bytecode) {
-      throw new MathMismatchError('Bytecode not found in artifact.');
+    const configPath = path.join(packagePath, 'deployment-config.json');
+    if (!fs.existsSync(configPath)) {
+      throw new Error('deployment-config.json not found in package');
     }
 
-    const salt = keccak256(toBytes(cid));
-    const bytecodeHash = keccak256(bytecode as Hex);
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const contracts: ContractConfig[] = config.contracts || [];
 
-    this.logger.debug(
-      `Math Check: CID=${cid}, Salt=${salt}, Hash=${bytecodeHash}`,
+    const projectIdBytes = projectId as Hex;
+
+    const deployedNames: string[] = [];
+    const deployedAddresses: Hex[] = [];
+
+    this.logger.debug(`Calculating addresses for Project ID: ${projectId}`);
+
+    for (const contract of contracts) {
+      const artifactPath = path.join(
+        packagePath,
+        'artifacts',
+        'contracts',
+        `${contract.name}.sol`,
+        `${contract.name}.json`,
+      );
+
+      if (!fs.existsSync(artifactPath)) {
+        throw new Error(`Artifact not found for contract: ${contract.name}`);
+      }
+
+      const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+
+      let bytecode = artifact.bytecode as Hex;
+      if (contract.constructorArgs?.length && contract.constructorTypes) {
+        const encoded = encodeAbiParameters(
+          parseAbiParameters(contract.constructorTypes),
+          contract.constructorArgs,
+        );
+        bytecode = `${bytecode}${encoded.slice(2)}` as Hex;
+      }
+
+      const bytecodeHash = keccak256(bytecode);
+      const contractSalt = keccak256(
+        toBytes(`${cid}.${contract.name}.${bytecodeHash}`),
+      );
+
+      const address = getCreate2Address({
+        from: registryAddress,
+        salt: contractSalt,
+        bytecode,
+      });
+
+      deployedNames.push(contract.name);
+      deployedAddresses.push(address);
+    }
+
+    // Compute VersionManifest address
+    const manifestArtifactPath = path.join(
+      packagePath,
+      'artifacts',
+      'contracts',
+      'VersionManifest.sol',
+      'VersionManifest.json',
     );
 
-    const computedAddress = getCreate2Address({
-      from: registryAddress as Hex,
-      salt: salt,
-      bytecode: bytecode as Hex,
+    if (!fs.existsSync(manifestArtifactPath)) {
+      throw new Error('VersionManifest artifact not found');
+    }
+
+    const manifestArtifact = JSON.parse(
+      fs.readFileSync(manifestArtifactPath, 'utf8'),
+    );
+
+    const manifestArgs = encodeAbiParameters(
+      parseAbiParameters('bytes32,string,string[],address[]'),
+      [projectIdBytes, cid, deployedNames, deployedAddresses],
+    );
+
+    const manifestBytecode =
+      `${manifestArtifact.bytecode}${manifestArgs.slice(2)}` as Hex;
+    const manifestSalt = keccak256(toBytes(`${cid}.VersionManifest`));
+
+    const manifestAddress = getCreate2Address({
+      from: registryAddress,
+      salt: manifestSalt,
+      bytecode: manifestBytecode,
     });
 
-    if (computedAddress.toLowerCase() !== onChainTarget.toLowerCase()) {
+    this.logger.debug(
+      `Computed Manifest Address: ${manifestAddress}, Target: ${onChainTarget}`,
+    );
+
+    if (manifestAddress.toLowerCase() !== onChainTarget.toLowerCase()) {
       throw new MathMismatchError(
-        `Critical Mismatch! Computed: ${computedAddress}, On-Chain: ${onChainTarget}.`,
+        `Critical Mismatch! Computed: ${manifestAddress}, On-Chain: ${onChainTarget}.`,
       );
     }
   }
@@ -556,7 +729,6 @@ export default config;
 
       return { skipped: false, message: 'Sovereign test suite passed.' };
     } catch (e: any) {
-      // Only log errors on failure
       this.logger.error(
         `Custom Tests Failed. Error: ${e.stderr || e.stdout || e.message}`,
       );
@@ -579,24 +751,24 @@ export default config;
   }
 
   private findArtifact(basePath: string): string {
-    // The contract being proposed is ALWAYS AppRegistry
-    // AppRegistry is the single implementation the governance Beacon points to
-    const appRegistryPath = path.join(
+    // The contract being proposed is ALWAYS VersionManifest
+    // VersionManifest is the single implementation the governance Beacon points to
+    const manifestPath = path.join(
       basePath,
       'artifacts',
       'contracts',
-      'AppRegistry.sol',
-      'AppRegistry.json',
+      'VersionManifest.sol',
+      'VersionManifest.json',
     );
 
-    if (fs.existsSync(appRegistryPath)) {
+    if (fs.existsSync(manifestPath)) {
       this.logger.debug(
-        'Found AppRegistry artifact (standard governance pattern)',
+        'Found VersionManifest artifact (standard governance pattern)',
       );
-      return appRegistryPath;
+      return manifestPath;
     }
 
-    // Fallback for legacy projects without AppRegistry pattern
+    // Fallback for legacy projects without VersionManifest pattern
     // Try to read contract name from proposal-metadata.json
     const metadataPath = path.join(basePath, 'proposal-metadata.json');
     if (fs.existsSync(metadataPath)) {
@@ -653,7 +825,7 @@ export default config;
     }
 
     this.logger.warn(
-      `No AppRegistry found, using fallback artifact: ${artifactFile}`,
+      `No VersionManifest found, using fallback artifact: ${artifactFile}`,
     );
     return artifactFile;
   }

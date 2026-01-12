@@ -50,7 +50,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [showPackageModal, setShowPackageModal] = useState<boolean>(false);
 
-  // Parse proposal
   const parsed = parseProposalDescription(
     proposal.description,
     proposal.ipfsCID,
@@ -59,12 +58,10 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
   const isPackageProposal =
     parsed.type === "development" && parsed.action === "package";
 
-  // Identify Proposer
   const isBotProposer = bots.some(
     (b) => b.address.toLowerCase() === proposal.proposer.toLowerCase(),
   );
 
-  // Calculate Time Remaining
   const calculatedBlocksLeft =
     proposal.status === "Active" &&
     currentBlock !== null &&
@@ -83,7 +80,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
           )}`
       : "";
 
-  // Check if user has already voted
   useEffect(() => {
     const checkStatus = async () => {
       if (!account || !contracts.governor) {
@@ -210,7 +206,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
     }
   };
 
-  // Helper to shorten CID for display
   const formatCID = (cid: string) => {
     if (!cid || cid.length < 20) return cid;
     return `${cid.slice(0, 10)}...${cid.slice(-8)}`;
@@ -393,24 +388,42 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                       <button
                         onClick={() => handleVote(proposal.id, 1)}
                         className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Approve"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Approve"
+                        }
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 0)}
                         className="px-4 py-2 text-xs font-semibold text-red-300 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Reject"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Reject"
+                        }
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 2)}
                         className="px-4 py-2 text-xs font-semibold text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Abstain"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Abstain"
+                        }
                       >
                         Abstain
                       </button>
@@ -423,35 +436,53 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                       <button
                         onClick={() => handleVote(proposal.id, 1)}
                         className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Approve"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Approve"
+                        }
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 0)}
                         className="px-4 py-2 text-xs font-semibold text-red-300 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Reject"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Reject"
+                        }
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleVote(proposal.id, 2)}
                         className="px-4 py-2 text-xs font-semibold text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!account || !canInteract || isQueuing || isExecuting}
-                        title={!canInteract ? "Connect wallet as stakeholder to vote" : "Abstain"}
+                        disabled={
+                          !account || !canInteract || isQueuing || isExecuting
+                        }
+                        title={
+                          !canInteract
+                            ? "Connect wallet as stakeholder to vote"
+                            : "Abstain"
+                        }
                       >
                         Abstain
                       </button>
                     </>
                   )}
 
-                  {/* Case 3: Package Proposal - NOT Verified - Show Message */}
+                  {/* Case 3: Package Proposal - NOT Verified - Show Info Message */}
                   {isPackageProposal && !isVerified && (
-                    <span className="text-xs text-yellow-500 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" />
-                      Verification required to vote
+                    <span className="text-xs text-blue-400 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Review code before voting
                     </span>
                   )}
                 </>
@@ -478,7 +509,11 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                 onClick={handleQueue}
                 className="px-4 py-2 text-xs font-semibold text-yellow-300 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-600/50 hover:border-yellow-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isQueuing || !account || !canInteract}
-                title={!canInteract ? "Connect wallet as stakeholder to queue" : "Queue proposal"}
+                title={
+                  !canInteract
+                    ? "Connect wallet as stakeholder to queue"
+                    : "Queue proposal"
+                }
               >
                 {isQueuing ? "Queuing..." : "Queue"}
               </button>
@@ -490,7 +525,11 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                 onClick={handleExecute}
                 className="px-4 py-2 text-xs font-semibold text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 hover:border-green-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isExecuting || !account || !canInteract}
-                title={!canInteract ? "Connect wallet as stakeholder to execute" : "Execute proposal"}
+                title={
+                  !canInteract
+                    ? "Connect wallet as stakeholder to execute"
+                    : "Execute proposal"
+                }
               >
                 {isExecuting ? "Executing..." : "Execute"}
               </button>

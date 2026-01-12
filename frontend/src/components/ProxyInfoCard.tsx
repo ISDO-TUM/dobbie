@@ -114,11 +114,14 @@ export const ProxyInfoCard: React.FC<ProxyInfoCardProps> = ({
                       className="bg-gray-800/20 hover:bg-gray-800/40 rounded-lg border border-gray-700/30 hover:border-gray-600/50 px-3 py-3 text-xs transition-all flex items-center justify-between"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="font-semibold text-gray-300">
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                          <span
+                            className="font-semibold text-gray-300 truncate max-w-[150px]"
+                            title={item.version}
+                          >
                             {item.version}
                           </span>
-                          <span className="text-gray-500 text-[10px]">
+                          <span className="text-gray-500 text-[10px] whitespace-nowrap shrink-0">
                             Block {item.blockNumber}
                           </span>
                         </div>

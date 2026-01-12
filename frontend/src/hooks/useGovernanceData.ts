@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
+import { truncateAddress } from "../lib/utils";
 import type {
   Proposal,
   Stakeholder,
@@ -158,7 +159,7 @@ export function useGovernanceData({
       const governorAddress = await contracts.governor.getAddress();
 
       try {
-        // 1. Fetch Package Events
+        // Fetch Package Events
         const packageLogs = await provider.getLogs({
           address: governorAddress,
           topics: [
@@ -186,7 +187,7 @@ export function useGovernanceData({
           }
         });
 
-        // 2. Fetch Proposal Events
+        // Fetch Proposal Events
         const proposalLogs = await provider.getLogs({
           address: governorAddress,
           topics: [
@@ -210,7 +211,6 @@ export function useGovernanceData({
               const id = parsed.args.proposalId.toString();
               const pkg = packageInfoMap.get(id);
 
-              // Access 'values' by index since parsed.args.values conflicts with Result.values()
               const valuesArray = parsed.args[3];
 
               return {
@@ -257,14 +257,14 @@ export function useGovernanceData({
       return [];
     }
 
-    // 1. Load Local State (Tier 1 - Cache)
+    // Load Local State (Tier 1 - Cache)
     const cached = loadFromCache();
     const lastScanned = cached
       ? cached.lastScannedBlock
       : Number(deploymentBlock) - 1;
     const knownProposals = cached ? cached.proposals : [];
 
-    // 2. Scan new blocks from blockchain (Tier 2)
+    // Scan new blocks from blockchain (Tier 2)
     console.log(
       `🚀 Starting Blockchain Scan (Last Block: ${lastScanned}, Current: ${currentBlockNumber})`,
     );
@@ -274,14 +274,14 @@ export function useGovernanceData({
       currentBlockNumber,
     );
 
-    // 3. Merge cached + newly found proposals
+    // Merge cached + newly found proposals
     const allProposalsMap = new Map<string, RawProposal>();
     knownProposals.forEach((p) => allProposalsMap.set(p.id, p));
     newOnChainProposals.forEach((p) => allProposalsMap.set(p.id, p));
 
     const finalProposals = Array.from(allProposalsMap.values());
 
-    // 4. Update Cache
+    // Update Cache
     if (newOnChainProposals.length > 0 || !cached) {
       saveToCache({
         lastScannedBlock: currentBlockNumber,
@@ -320,20 +320,23 @@ export function useGovernanceData({
 
     let currentProxyAddress: string | null = null;
     let currentBeaconAddress: string | null = null;
+
     if (
       selectedProject?.proxyAddress &&
-      ethers.isAddress(selectedProject.proxyAddress) &&
-      selectedProject?.beaconAddress &&
-      ethers.isAddress(selectedProject.beaconAddress)
+      ethers.isAddress(selectedProject.proxyAddress)
     ) {
       currentProxyAddress = selectedProject.proxyAddress;
-      currentBeaconAddress = selectedProject.beaconAddress;
+
+      // Only set beacon if it's a valid address (and not the 0x0 fallback)
+      if (
+        selectedProject.beaconAddress &&
+        ethers.isAddress(selectedProject.beaconAddress) &&
+        selectedProject.beaconAddress !== ethers.ZeroAddress
+      ) {
+        currentBeaconAddress = selectedProject.beaconAddress;
+      }
     } else {
-      console.log(
-        "   No project selected or invalid proxy address. Clearing proxy info.",
-      );
-      setProxyInfo({ address: "", beacon: "", implementation: "" });
-      setUpgradeHistory([]);
+      // ... clear info ...
     }
 
     try {
@@ -433,7 +436,7 @@ export function useGovernanceData({
               `   Found ${addedEvents.length} added, ${removedEvents.length} removed stakeholder events, ${identityLogs.length} identity events.`,
             );
 
-            // Build identity map from IdentitySet events (latest github username per address)
+            // Build identity map from IdentitySet events
             const identityMap = new Map<
               string,
               { github: string; blockNumber: number }
@@ -451,7 +454,6 @@ export function useGovernanceData({
                   const key = parsed.args.key as string;
                   const value = parsed.args.value as string;
 
-                  // Only track "github" key for now
                   if (address && key === "github" && log.blockNumber) {
                     const existing = identityMap.get(address);
                     if (!existing || log.blockNumber > existing.blockNumber) {
@@ -547,46 +549,77 @@ export function useGovernanceData({
               `   Found ${botAddedEvents.length} added, ${botRemovedEvents.length} removed bot events.`,
             );
 
-            const addedBotsMap = new Map<string, { blockNumber: number }>();
+            // Role hash constants (same as contract)
+            const PROPOSER_ROLE = ethers.keccak256(
+              ethers.toUtf8Bytes("PROPOSER_ROLE"),
+            );
+            const PROPAGATOR_ROLE = ethers.keccak256(
+              ethers.toUtf8Bytes("PROPAGATOR_ROLE"),
+            );
+
+            // Track role assignments per address: address -> role -> { blockNumber, active }
+            const botRolesMap = new Map<
+              string,
+              Map<string, { blockNumber: number; active: boolean }>
+            >();
+
+            // Process BotAdded events
             botAddedEvents.forEach((e) => {
               const eventLog = e as ethers.EventLog;
               const address = (
                 eventLog.args?.botAddress as string
               )?.toLowerCase();
-              if (address && e.blockNumber !== undefined) {
-                if (
-                  !addedBotsMap.has(address) ||
-                  e.blockNumber > addedBotsMap.get(address)!.blockNumber
-                ) {
-                  addedBotsMap.set(address, { blockNumber: e.blockNumber });
+              const role = eventLog.args?.role as string;
+              if (address && role && e.blockNumber !== undefined) {
+                if (!botRolesMap.has(address)) {
+                  botRolesMap.set(address, new Map());
+                }
+                const roles = botRolesMap.get(address)!;
+                const existing = roles.get(role);
+                if (!existing || e.blockNumber > existing.blockNumber) {
+                  roles.set(role, { blockNumber: e.blockNumber, active: true });
                 }
               }
             });
 
-            const removedBotsMap = new Map<string, { blockNumber: number }>();
+            // Process BotRemoved events
             botRemovedEvents.forEach((e) => {
               const eventLog = e as ethers.EventLog;
               const address = (
                 eventLog.args?.botAddress as string
               )?.toLowerCase();
-              if (address && e.blockNumber !== undefined) {
-                if (
-                  !removedBotsMap.has(address) ||
-                  e.blockNumber > removedBotsMap.get(address)!.blockNumber
-                ) {
-                  removedBotsMap.set(address, { blockNumber: e.blockNumber });
+              const role = eventLog.args?.role as string;
+              if (address && role && e.blockNumber !== undefined) {
+                if (!botRolesMap.has(address)) {
+                  botRolesMap.set(address, new Map());
+                }
+                const roles = botRolesMap.get(address)!;
+                const existing = roles.get(role);
+                if (!existing || e.blockNumber > existing.blockNumber) {
+                  roles.set(role, {
+                    blockNumber: e.blockNumber,
+                    active: false,
+                  });
                 }
               }
             });
 
+            // Build current bots list with role flags
             const currentBots: Bot[] = [];
-            for (const [address, addedInfo] of addedBotsMap.entries()) {
-              const removedInfo = removedBotsMap.get(address);
-              if (
-                !removedInfo ||
-                (removedInfo && addedInfo.blockNumber > removedInfo.blockNumber)
-              ) {
-                currentBots.push({ address: ethers.getAddress(address) });
+            for (const [address, roles] of botRolesMap.entries()) {
+              const proposerInfo = roles.get(PROPOSER_ROLE);
+              const propagatorInfo = roles.get(PROPAGATOR_ROLE);
+
+              const isProposer = proposerInfo?.active ?? false;
+              const isPropagator = propagatorInfo?.active ?? false;
+
+              // Only add if at least one role is active
+              if (isProposer || isPropagator) {
+                currentBots.push({
+                  address: ethers.getAddress(address),
+                  isProposer,
+                  isPropagator,
+                });
               }
             }
             console.log(`   Reconciled to ${currentBots.length} bots.`);
@@ -620,12 +653,12 @@ export function useGovernanceData({
               );
               try {
                 // Use a minimal ABI containing only the Upgraded event
-                const beaconContract = new ethers.Contract( // <-- CHANGED
+                const beaconContract = new ethers.Contract(
                   currentBeaconAddress!,
-                  BeaconABI, // <-- CHANGED
+                  BeaconABI,
                   provider,
                 );
-                const filter = beaconContract.filters.Upgraded(); // Standard proxy event
+                const filter = beaconContract.filters.Upgraded();
                 // Start scan from Registry deployment block (proxy deployed after/with registry)
                 const events = await beaconContract.queryFilter(
                   filter,
@@ -635,21 +668,47 @@ export function useGovernanceData({
                 console.log(
                   `   Found ${events.length} Upgraded events for this beacon.`,
                 );
-                return events
-                  .map((event, idx) => {
+
+                const historyItems = await Promise.all(
+                  events.map(async (event) => {
                     const eventLog = event as ethers.EventLog;
                     const implementationAddress =
                       eventLog.args && eventLog.args.implementation
                         ? (eventLog.args.implementation as string)
                         : "Unknown";
+
+                    let versionTag = "Unknown";
+                    if (
+                      implementationAddress !== "Unknown" &&
+                      ethers.isAddress(implementationAddress)
+                    ) {
+                      try {
+                        const manifestContract = new ethers.Contract(
+                          implementationAddress,
+                          ["function VERSION() view returns (string)"],
+                          provider,
+                        );
+                        versionTag = await manifestContract.VERSION();
+                      } catch (_e) {
+                        console.warn(
+                          `Failed to fetch VERSION for ${implementationAddress}`,
+                          _e,
+                        );
+                        // Fallback or keep "Unknown"
+                        versionTag = truncateAddress(implementationAddress);
+                      }
+                    }
+
                     return {
-                      version: `v1.${idx + 1}`, // Start from v1.1
+                      version: versionTag,
                       address: implementationAddress,
                       date: new Date(), // Placeholder
                       blockNumber: event.blockNumber,
                     };
-                  })
-                  .reverse();
+                  }),
+                );
+
+                return historyItems.reverse();
               } catch (err) {
                 console.error("   Failed to fetch upgrade history:", err);
                 return [];
@@ -875,7 +934,7 @@ export function useGovernanceData({
   ]);
 
   // ============================================================================
-  // Effects
+  // EFFECTS
   // ============================================================================
 
   // Trigger fetchAllData when dependencies change

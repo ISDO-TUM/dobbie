@@ -8,7 +8,6 @@ import { type InterfaceAbi } from "ethers";
 
 const API_URL = "http://localhost:3001";
 
-// --- Types ---
 export interface PrepareTeamInput {
   token: string;
   name: string;
@@ -57,7 +56,7 @@ export const artifactsQueryOptions = queryOptions({
     if (!res.ok) throw new Error("Failed to fetch artifacts");
     return res.json();
   },
-  staleTime: Infinity,
+  staleTime: 0,
 });
 
 /**
@@ -78,23 +77,25 @@ export const teamQueryOptions = (teamId: string) => {
 
 /**
  * Fetches all teams (used in the Welcome/Home screen).
+ * @param includeArchived - If true, includes archived teams
  */
-export const allTeamsQueryOptions = queryOptions({
-  queryKey: ["teams"],
-  queryFn: async () => {
-    const res = await fetch(`${API_URL}/teams`);
-    if (!res.ok) {
-      throw new Error("Failed to fetch teams list");
-    }
-    return res.json() as Promise<Team[]>;
-  },
-});
+export const allTeamsQueryOptions = (includeArchived = false) =>
+  queryOptions({
+    queryKey: ["teams", { includeArchived }],
+    queryFn: async () => {
+      const url = includeArchived
+        ? `${API_URL}/teams?includeArchived=true`
+        : `${API_URL}/teams`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error("Failed to fetch teams list");
+      }
+      return res.json() as Promise<Team[]>;
+    },
+  });
 
 // --- Mutations (POST Requests) ---
 
-/**
- * Step 1: Prepares the GitHub infrastructure.
- */
 export const usePrepareTeamMutation = () => {
   return useMutation({
     mutationFn: async (data: PrepareTeamInput) => {
@@ -116,9 +117,6 @@ export const usePrepareTeamMutation = () => {
   });
 };
 
-/**
- * Step 3: Registers the fully deployed team in the backend database.
- */
 export const useRegisterTeamMutation = () => {
   const queryClient = useQueryClient();
 
@@ -138,11 +136,8 @@ export const useRegisterTeamMutation = () => {
       return res.json() as Promise<Team>;
     },
     onSuccess: (newTeam) => {
-      // 1. Invalidate the "All Teams" list so the home screen updates
       queryClient.invalidateQueries({ queryKey: ["teams"] });
 
-      // 2. Pre-seed the cache for the specific team dashboard
-      // This makes the transition to the dashboard instant
       if (newTeam && newTeam.id) {
         queryClient.setQueryData(["teams", String(newTeam.id)], newTeam);
       }
@@ -168,6 +163,71 @@ export function useJoinTeamMutation() {
 
       if (!response.ok) {
         throw new Error("Failed to import team");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+  });
+}
+
+// --- Archive/Unarchive/Delete Mutations ---
+
+export function useArchiveTeamMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const response = await fetch(`${API_URL}/teams/${teamId}/archive`, {
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to archive team");
+      }
+
+      return response.json() as Promise<Team>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+  });
+}
+
+export function useUnarchiveTeamMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const response = await fetch(`${API_URL}/teams/${teamId}/unarchive`, {
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to unarchive team");
+      }
+
+      return response.json() as Promise<Team>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+  });
+}
+
+export function useDeleteTeamMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const response = await fetch(`${API_URL}/teams/${teamId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete team");
       }
 
       return response.json();

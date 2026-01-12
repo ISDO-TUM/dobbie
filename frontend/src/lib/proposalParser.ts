@@ -1,5 +1,3 @@
-// ... existing imports ...
-
 export interface ProposalTag {
   type: "category" | "action" | "target" | "value" | "address" | "ipfs";
   label: string;
@@ -33,11 +31,11 @@ export function parseProposalDescription(
   description: string,
   ipfsCID?: string,
 ): ParsedProposal {
-  // 1. Clean salt from description
+  // Clean salt from description
   const cleanDescription = description.replace(/\s+# salt:.*$/, "");
   const lowerDesc = description.toLowerCase();
 
-  // 2. Define Regex for Package Upgrades
+  // Define Regex for Package Upgrades
   // Matches "Upgrade <something>" or "for <something>"
   const packageRegex = /upgrade\s+([^\s]+)|for\s+([^\s]+)/i;
   const isPackageText = packageRegex.test(description);
@@ -46,7 +44,6 @@ export function parseProposalDescription(
     const projectMatch = description.match(packageRegex);
     let projectName = projectMatch?.[1] || projectMatch?.[2];
 
-    // Optional: Truncate Project ID if it's a raw bytes32 hash (starts with 0x and is long)
     if (
       projectName &&
       projectName.startsWith("0x") &&
@@ -63,7 +60,6 @@ export function parseProposalDescription(
       action: "package",
       parameters: [
         ...(projectName ? [{ key: "project", value: projectName }] : []),
-        // Only include IPFS tag if we actually have the CID
         ...(ipfsCID
           ? [{ key: "ipfs", value: ipfsCID, displayLabel: "IPFS CID" }]
           : []),

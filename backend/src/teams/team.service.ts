@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Team } from './entities/team.entity';
+import { ProposalVerification } from '../verification/entities/verification.entity';
 import { GithubService } from '../github/github.service';
 
 @Injectable()
@@ -9,20 +10,16 @@ export class TeamService {
   constructor(
     @InjectRepository(Team)
     private teamsRepository: Repository<Team>,
+    @InjectRepository(ProposalVerification)
+    private verificationRepository: Repository<ProposalVerification>,
     private githubService: GithubService,
   ) {}
 
-  /**
-   * Step 1: Prepare Infrastructure
-   * Creates the GitHub Repo and invites members.
-   */
   async prepareInfrastructure(dto: {
     token: string;
     name: string;
     members: string[];
   }) {
-    // 1. Create the Repo
-    // Sanitize repo name (replace spaces with hyphens)
     const repoName = dto.name.toLowerCase().replace(/\s+/g, '-');
     const description = `Sovereign DevOps Governance for ${dto.name}`;
 
@@ -48,10 +45,6 @@ export class TeamService {
     };
   }
 
-  /**
-   * Step 2: Final Registration
-   * Saves the fully deployed team to the DB.
-   */
   async registerTeam(dto: {
     name: string;
     governorAddress: string;
@@ -66,7 +59,6 @@ export class TeamService {
     });
 
     if (existing) {
-      // If it's an import, just return the existing team (idempotent)
       return existing;
     }
 
@@ -75,18 +67,52 @@ export class TeamService {
       governorAddress: dto.governorAddress,
       registryAddress: dto.registryAddress,
       repoUrl: dto.repoUrl,
-      deploymentBlock: dto.deploymentBlock, // ✅ Explicitly include this
+      deploymentBlock: dto.deploymentBlock,
       isGithubConfigured: !!dto.repoUrl,
     });
 
     return this.teamsRepository.save(team);
   }
 
-  async findAll() {
-    return this.teamsRepository.find();
+  async findAll(includeArchived = false) {
+    if (includeArchived) {
+      return this.teamsRepository.find();
+    }
+    return this.teamsRepository.find({
+      where: { archivedAt: IsNull() },
+    });
   }
 
   async findOne(id: number) {
     return this.teamsRepository.findOne({ where: { id } });
+  }
+
+  async archiveTeam(id: number) {
+    const team = await this.teamsRepository.findOne({ where: { id } });
+    if (!team) {
+      throw new NotFoundException(`Team #${id} not found`);
+    }
+    team.archivedAt = new Date();
+    return this.teamsRepository.save(team);
+  }
+
+  async unarchiveTeam(id: number) {
+    const team = await this.teamsRepository.findOne({ where: { id } });
+    if (!team) {
+      throw new NotFoundException(`Team #${id} not found`);
+    }
+    team.archivedAt = null;
+    return this.teamsRepository.save(team);
+  }
+
+  async deleteTeam(id: number) {
+    const team = await this.teamsRepository.findOne({ where: { id } });
+    if (!team) {
+      throw new NotFoundException(`Team #${id} not found`);
+    }
+    // Cascade delete related verifications
+    await this.verificationRepository.delete({ teamId: id });
+    await this.teamsRepository.remove(team);
+    return { success: true, id };
   }
 }

@@ -5,10 +5,18 @@ interface VerificationRequestDto {
   targetAddress: string;
   ipfsCID: string;
   governorAddress: string;
+  projectId: string;
 }
 
 interface CancelRequestDto {
   type: 'basic' | 'custom';
+}
+
+interface GenerateCalldataDto {
+  ipfsCID: string;
+  projectId: string;
+  registryAddress: string;
+  constructorArgs?: string[]; // Optional constructor arguments for the contract
 }
 
 @Controller('proposals')
@@ -17,7 +25,7 @@ export class VerificationController {
 
   constructor(private readonly verificationService: VerificationService) {}
 
-  // --- 1. INTEGRITY CHECK (Math Check) ---
+  // --- INTEGRITY CHECK (Math Check) ---
   @Post(':id/check/integrity')
   async runIntegrityCheck(
     @Param('id') proposalId: string,
@@ -30,6 +38,7 @@ export class VerificationController {
       body.targetAddress,
       body.ipfsCID,
       body.governorAddress,
+      body.projectId,
     );
 
     return {
@@ -39,7 +48,7 @@ export class VerificationController {
     };
   }
 
-  // --- 2. BASIC SIMULATION (Standard Tests) ---
+  // --- BASIC SIMULATION (Standard Tests) ---
   @Post(':id/check/basic')
   async runBasicTests(
     @Param('id') proposalId: string,
@@ -59,7 +68,7 @@ export class VerificationController {
     };
   }
 
-  // --- 3. CUSTOM TEST SUITE (Private Tests) ---
+  // --- CUSTOM TEST SUITE (Private Tests) ---
   @Post(':id/check/custom')
   async runCustomTests(
     @Param('id') proposalId: string,
@@ -91,5 +100,25 @@ export class VerificationController {
   ) {
     this.logger.log(`🛑 Cancelling ${body.type} tests for #${proposalId}`);
     return await this.verificationService.cancelTests(proposalId, body.type);
+  }
+
+  // --- GENERATE PROPOSAL CALLDATA ---
+  @Post('generate-calldata')
+  async generateCalldata(@Body() body: GenerateCalldataDto) {
+    this.logger.log(
+      `📦 Generating calldata for CID: ${body.ipfsCID}, Project: ${body.projectId}`,
+    );
+
+    const result = await this.verificationService.generateProposalCalldata(
+      body.ipfsCID,
+      body.projectId,
+      body.registryAddress,
+      body.constructorArgs,
+    );
+
+    return {
+      status: 'success',
+      ...result,
+    };
   }
 }

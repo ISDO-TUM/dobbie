@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { EventLog, Log, Contract } from "ethers";
+import { Contract, id, AbiCoder, getAddress, Log } from "ethers";
 
 export interface Project {
   id: string;
@@ -18,7 +18,6 @@ export function useProjects(
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const fetchProjects = useCallback(async () => {
-    // 1. Safety Check: If contract isn't ready, we can't fetch
     if (!registryContract) {
       setIsLoading(false);
       return;
@@ -37,43 +36,109 @@ export function useProjects(
         `Querying ProjectRegistered events from block ${startBlock}...`,
       );
 
-      // 2. Use the injected contract instance directly
-      const filter = registryContract.filters.ProjectRegistered();
-      const logs: (Log | EventLog)[] = await registryContract.queryFilter(
-        filter,
-        startBlock,
-        "latest",
-      );
+      // Fetch both current (V2) and legacy (V1) ProjectRegistered events
+      const newTopic =
+        registryContract.interface.getEvent("ProjectRegistered")!.topicHash;
+      const legacyTopic = id("ProjectRegistered(bytes32,string,address)");
+
+      // Bypassing strict ABI checks using the raw provider
+      let provider = registryContract.runner;
+      if (provider && "provider" in provider && provider.provider) {
+        provider = provider.provider;
+      }
+
+      if (!provider || !("getLogs" in provider)) {
+        throw new Error("Contract runner is not a valid provider");
+      }
+
+      const logs = await (provider as any).getLogs({
+        address: registryContract.target,
+        topics: [[newTopic, legacyTopic]],
+        fromBlock: startBlock,
+        toBlock: "latest",
+      });
 
       console.log(`Found ${logs.length} ProjectRegistered events.`);
 
-      const projectPromises = logs.map(async (log): Promise<Project | null> => {
-        const eventLog = log as EventLog;
-        const { projectId, projectName, proxyAddress } = eventLog.args;
+      const projectPromises = logs.map(
+        async (log: Log): Promise<Project | null> => {
+          let projectId, projectName, proxyAddress, beaconAddress;
+          let parsed = null;
 
-        if (!projectId || !projectName || !proxyAddress) {
-          console.warn("Incomplete event data found in log:", log);
-          return null;
-        }
+          // 1. Try parsing with current interface
+          try {
+            parsed = registryContract.interface.parseLog({
+              topics: [...log.topics],
+              data: log.data,
+            });
+          } catch (e) {
+            console.error("Failed to parse log:", e);
+            // Ignore parse errors, will fall back to legacy check
+          }
 
-        let beaconAddress = "0x0";
-        try {
-          // Call the contract directly
-          beaconAddress = await registryContract.projectBeacons(projectId);
-        } catch (e) {
-          console.error(
-            `Failed to fetch beacon for project ${projectName} (ID: ${projectId}):`,
-            e,
-          );
-        }
+          if (parsed) {
+            projectId = parsed.args[0];
+            projectName = parsed.args[1];
+            proxyAddress = parsed.args[2];
+            beaconAddress = parsed.args[3];
+          } else if (log.topics.length === 3) {
+            // 2. Fallback: Parse Legacy Event (3 topics: signature, projectId, proxyAddress)
+            try {
+              projectId = log.topics[1]; // Topic 1: projectId
 
-        return {
-          id: projectId as string,
-          name: projectName as string,
-          proxyAddress: proxyAddress as string,
-          beaconAddress: beaconAddress,
-        };
-      });
+              // Topic 2: proxyAddress (decode from padded hex)
+              if (log.topics[2] && log.topics[2].length >= 26) {
+                const addressHex = "0x" + log.topics[2].slice(26);
+                proxyAddress = getAddress(addressHex);
+              }
+
+              // Data: projectName (string)
+              const abiCoder = AbiCoder.defaultAbiCoder();
+              const decodedData = abiCoder.decode(["string"], log.data);
+              projectName = decodedData[0];
+
+              beaconAddress = "0x0";
+            } catch (manualError) {
+              console.error("Failed manual legacy parse:", manualError);
+              return null;
+            }
+          } else {
+            console.warn(
+              "Log has unexpected topic count:",
+              log.topics.length,
+              log,
+            );
+            return null;
+          }
+
+          if (!projectId || !projectName || !proxyAddress) {
+            console.warn("Incomplete event data found in log:", { log });
+            return null;
+          }
+
+          // 3. Fallback: Fetch beacon if missing (Legacy support)
+          if (
+            !beaconAddress ||
+            beaconAddress === "0x0000000000000000000000000000000000000000"
+          ) {
+            try {
+              beaconAddress = await registryContract.projectBeacons(projectId);
+            } catch (e) {
+              console.error(
+                `Failed to fetch beacon for project ${projectName} (ID: ${projectId}):`,
+                e,
+              );
+            }
+          }
+
+          return {
+            id: projectId as string,
+            name: projectName as string,
+            proxyAddress: proxyAddress as string,
+            beaconAddress: beaconAddress || "0x0",
+          };
+        },
+      );
 
       const settledProjects = await Promise.allSettled(projectPromises);
 
@@ -85,7 +150,7 @@ export function useProjects(
 
       setProjects(discoveredProjects);
 
-      // Logic to handle selection persistence
+      // Persist selection if current selection still exists, else default to first
       if (discoveredProjects.length > 0) {
         setSelectedProject((current) => {
           const currentId = current?.id;
@@ -100,9 +165,7 @@ export function useProjects(
     } catch (error) {
       console.error("Failed to fetch projects:", error);
       setError(
-        `Failed to fetch projects: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to fetch projects: ${error instanceof Error ? error.message : String(error)}`,
       );
       setProjects([]);
     } finally {
@@ -110,7 +173,6 @@ export function useProjects(
     }
   }, [registryContract, deploymentBlock]);
 
-  // 3. React to changes in the contract instance (e.g., wallet connection)
   useEffect(() => {
     if (registryContract) {
       fetchProjects();

@@ -3,4 +3,4 @@
 **/coverage
 **/.DS_Store
 .env
-data/*.sqlite  # Don't commit the DB!
+data/*.sqlite 

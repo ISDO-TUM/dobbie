@@ -41,7 +41,7 @@ export class ProposalVerification {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Team, { eager: true })
+  @ManyToOne(() => Team, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'teamId' })
   team: Team;
 

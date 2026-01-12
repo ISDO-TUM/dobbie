@@ -8,6 +8,12 @@ pragma solidity ^0.8.28;
  */
 interface IUpgradeableBeacon {
     /**
+     * @notice Returns the current implementation address.
+     * @return The address of the current implementation contract.
+     */
+    function implementation() external view returns (address);
+
+    /**
      * @notice Upgrades the beacon to a new implementation.
      * @dev This function can only be called by the beacon's owner.
      * @param newImplementation The address of the new implementation contract.

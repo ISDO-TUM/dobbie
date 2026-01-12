@@ -1,10 +1,9 @@
 import { ethers } from "ethers";
 import useWeb3Connection from "./useWeb3Connection";
 
-// The standard AccessControl ABI for checking roles
 const ACCESS_CONTROL_ABI = [
   "function hasRole(bytes32 role, address account) view returns (bool)",
-  "function name() view returns (string)", // Optional: to fetch team name
+  "function name() view returns (string)",
 ];
 
 export function useCheckStakeholder() {
@@ -23,14 +22,10 @@ export function useCheckStakeholder() {
         provider,
       );
 
-      // 1. Calculate the Hash for "STAKEHOLDER_ROLE"
-      // This must match the constant in your Solidity contract
       const STAKEHOLDER_ROLE = ethers.keccak256(
         ethers.toUtf8Bytes("STAKEHOLDER_ROLE"),
       );
 
-      // 2. Call the contract
-      // We use Promise.all to fetch name and role status in parallel
       const [isStakeholder, name] = await Promise.all([
         contract.hasRole(STAKEHOLDER_ROLE, walletAddress),
         contract.name().catch(() => "Unknown Team"), // Fallback if name() fails

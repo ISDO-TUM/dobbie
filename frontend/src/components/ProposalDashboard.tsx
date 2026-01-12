@@ -44,7 +44,6 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // --- Verification State Management ---
   const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set());
   const [verifyingProposal, setVerifyingProposal] = useState<Proposal | null>(
     null,
@@ -55,7 +54,6 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
     setVerifyingProposal(null);
   };
 
-  // Handle refresh with animation
   const handleRefresh = async () => {
     if (!onRefresh || isRefreshing) return;
 
@@ -63,12 +61,10 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
     try {
       await onRefresh();
     } finally {
-      // Keep spinning for at least 500ms for visual feedback
       setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
-  // 1. Pre-calculate Active Counts for Badges
   const { activeDevCount, activeGovCount } = useMemo(() => {
     let dev = 0;
     let gov = 0;
@@ -94,7 +90,6 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
     return { activeDevCount: dev, activeGovCount: gov };
   }, [proposals]);
 
-  // 2. Categorize and Filter Proposals
   const filteredProposals = useMemo(() => {
     const filtered = proposals.filter((p) => {
       const parsed = parseProposalDescription(p.description, p.ipfsCID);
@@ -285,7 +280,6 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
           ))}
         </div>
       ) : filteredProposals.length > 0 ? (
-        // Proposal Grid
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
           {filteredProposals.map((proposal) => (
             <ProposalCard
@@ -319,7 +313,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
         </div>
       )}
 
-      {/* --- VERIFICATION MODAL --- */}
+      {/* Verification Modal */}
       {verifyingProposal && verifyingProposal.ipfsCID && (
         <ProposalVerificationModal
           isOpen={!!verifyingProposal}
@@ -327,6 +321,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
           proposalId={verifyingProposal.id.toString()}
           targetAddress={verifyingProposal.targetAddress || ""}
           ipfsCID={verifyingProposal.ipfsCID}
+          projectId={verifyingProposal.projectId || ""}
           contracts={contracts}
           account={account}
           onVoteSuccess={() => {

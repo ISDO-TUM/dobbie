@@ -9,7 +9,7 @@ pragma solidity ^0.8.28;
  * action for a team will be to upgrade from this contract to their V1.
  */
 contract InitialImplementation {
-    /// @notice Version of this placeholder implementation
+    /// @notice Version placeholder for future upgrades
     string public constant VERSION = "0.0.0";
 
     fallback() external payable {

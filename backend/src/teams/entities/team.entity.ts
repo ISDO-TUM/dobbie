@@ -8,11 +8,9 @@ export class Team {
   @Column({ unique: true })
   name: string;
 
-  // The main DevOpsGovernor contract address
   @Column({ length: 42, unique: true })
   governorAddress: string;
 
-  // The DeploymentRegistry contract address
   @Column({ length: 42 })
   registryAddress: string;
 
@@ -24,4 +22,7 @@ export class Team {
 
   @Column({ type: 'int', nullable: true })
   deploymentBlock: number;
+
+  @Column({ type: 'datetime', nullable: true })
+  archivedAt: Date | null;
 }

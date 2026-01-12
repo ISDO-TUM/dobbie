@@ -12,6 +12,8 @@ export interface Stakeholder {
 
 export interface Bot {
   address: string;
+  isProposer: boolean;
+  isPropagator: boolean;
 }
 
 export interface Proposal {
@@ -37,7 +39,7 @@ export interface GovernanceParams {
   votingDelay: number;
   votingPeriod: number;
   quorum: number;
-  minDelay: number; // Timelock min delay in seconds
+  minDelay: number;
 }
 
 export interface ProxyInfo {
@@ -57,7 +59,10 @@ export interface FormField {
   name: string;
   label: string;
   placeholder: string;
-  type?: string;
+  type?: string; // "text" | "number" | "select" | "checkbox-group"
+  optional?: boolean;
+  multiSelect?: boolean;
+  options?: { value: string; label: string }[]; // For select/checkbox fields
 }
 
 export interface ProposalAction {
@@ -100,4 +105,5 @@ export interface Team {
   registryAddress: string;
   deploymentBlock?: number;
   githubLink?: string;
+  archivedAt?: string | null;
 }

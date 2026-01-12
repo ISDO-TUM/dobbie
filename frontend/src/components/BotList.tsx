@@ -7,7 +7,7 @@ interface BotListProps {
   bots: Bot[];
   isLoading?: boolean;
   onAddBot: () => void;
-  onRemoveBot: (address: string) => void;
+  onRemoveBot: (bot: Bot) => void;
   canInteract?: boolean;
 }
 
@@ -60,16 +60,30 @@ export const BotList: React.FC<BotListProps> = ({
                 key={bot.address}
                 className="flex items-center justify-between bg-gray-800/20 hover:bg-gray-800/40 rounded-lg px-4 py-3 text-xs border border-gray-700/30 hover:border-gray-600/50 transition-all"
               >
-                <div className="font-mono text-gray-300 truncate">
-                  {truncateAddress(bot.address)}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="font-mono text-gray-300 truncate">
+                    {truncateAddress(bot.address)}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 flex-col">
+                    {bot.isProposer && (
+                      <span className="px-2 py-0.5 bg-blue-600/20 text-blue-300 text-[10px] font-semibold rounded border border-blue-600/30 w-full text-center">
+                        Proposer
+                      </span>
+                    )}
+                    {bot.isPropagator && (
+                      <span className="px-2 py-0.5 bg-purple-600/20 text-purple-300 text-[10px] font-semibold rounded border border-purple-600/30 w-full text-center">
+                        Propagator
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="ml-2 flex items-center gap-2">
+                <div className="ml-2 flex items-center gap-2 shrink-0">
                   <CopyButton textToCopy={bot.address} size="xs" />
                   {canInteract && (
                     <button
-                      onClick={() => onRemoveBot(bot.address)}
-                      className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-red-900/30 border border-blue-600/50 hover:border-red-700/50 transition-all text-blue-400 hover:text-red-400"
-                      title="Remove bot"
+                      onClick={() => onRemoveBot(bot)}
+                      className="p-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 hover:border-red-500 transition-all text-red-400 hover:text-red-300"
+                      title="Remove Bot"
                     >
                       <X className="w-4 h-4" />
                     </button>

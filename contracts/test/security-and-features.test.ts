@@ -12,7 +12,7 @@ import {
 } from "viem";
 
 import registryArtifact from "../artifacts/contracts/DeploymentRegistry.sol/DeploymentRegistry.json" with { type: "json" };
-import appRegistryV1Artifact from "../artifacts/contracts/test/AppRegistryV1.sol/AppRegistryV1.json" with { type: "json" };
+import versionManifestV1Artifact from "../artifacts/contracts/test/VersionManifestV1.sol/VersionManifestV1.json" with { type: "json" };
 
 describe("Security & Advanced Features", function () {
   let viem: any, publicClient: any, testClient: any, networkHelpers: any;
@@ -80,23 +80,43 @@ describe("Security & Advanced Features", function () {
       account: deployer.account,
     });
 
-    const creationCode = appRegistryV1Artifact.bytecode as `0x${string}`;
+    const creationCode = versionManifestV1Artifact.bytecode as `0x${string}`;
+
+    // Constructor args for manifest
+    const contractNames = ["DummyProductV1"];
+    const contractAddresses = [productV1.address];
+
     const constructorArgs = encodeAbiParameters(
-      [{ type: "address" }],
-      [productV1.address]
+      [
+        { type: "bytes32" },
+        { type: "string" },
+        { type: "string[]" },
+        { type: "address[]" },
+      ],
+      [projectId, "v1.0.0", contractNames, contractAddresses]
     );
-    const fullBytecode =
+    const manifestBytecode =
       `${creationCode}${constructorArgs.substring(2)}` as `0x${string}`;
-    const salt = keccak256(toHex("MaliciousUpdate"));
+    const manifestSalt = keccak256(toHex("MaliciousUpdate"));
+    const versionTag = "v1.0.0";
 
     const fakeAddress = getAddress(
       "0x000000000000000000000000000000000000dEaD"
     );
 
+    const contracts: any[] = [];
+
     const upgradeCallData = encodeFunctionData({
       abi: registryArtifact.abi,
-      functionName: "deployDeterministicAndUpgrade",
-      args: [projectId, salt, fullBytecode, fakeAddress],
+      functionName: "batchDeployAndUpgrade",
+      args: [
+        projectId,
+        contracts,
+        manifestBytecode,
+        manifestSalt,
+        fakeAddress,
+        versionTag,
+      ],
     });
 
     const description = "Malicious Upgrade";
@@ -147,7 +167,7 @@ describe("Security & Advanced Features", function () {
         "Security check failed: Malicious deployment should have reverted"
       );
     } catch (error: any) {
-      expect(error.message).to.include("Security Violation");
+      expect(error.message).to.include("Manifest address mismatch");
     }
   });
 
@@ -158,25 +178,45 @@ describe("Security & Advanced Features", function () {
       account: deployer.account,
     });
 
-    const creationCode = appRegistryV1Artifact.bytecode as `0x${string}`;
+    const creationCode = versionManifestV1Artifact.bytecode as `0x${string}`;
+
+    // Constructor args for manifest
+    const contractNames = ["DummyProductV1"];
+    const contractAddresses = [productV1.address];
+
     const constructorArgs = encodeAbiParameters(
-      [{ type: "address" }],
-      [productV1.address]
+      [
+        { type: "bytes32" },
+        { type: "string" },
+        { type: "string[]" },
+        { type: "address[]" },
+      ],
+      [projectId, "v1.0.0", contractNames, contractAddresses]
     );
-    const fullBytecode =
+    const manifestBytecode =
       `${creationCode}${constructorArgs.substring(2)}` as `0x${string}`;
-    const salt = keccak256(toHex("V1.0.0"));
-    const expectedAddress = getContractAddress({
-      bytecode: fullBytecode,
+    const manifestSalt = keccak256(toHex("V1.0.0"));
+    const versionTag = "v1.0.0";
+    const expectedManifestAddress = getContractAddress({
+      bytecode: manifestBytecode,
       from: registry.address,
       opcode: "CREATE2",
-      salt: salt,
+      salt: manifestSalt,
     });
+
+    const contracts: any[] = [];
 
     const upgradeCallData = encodeFunctionData({
       abi: registryArtifact.abi,
-      functionName: "deployDeterministicAndUpgrade",
-      args: [projectId, salt, fullBytecode, expectedAddress],
+      functionName: "batchDeployAndUpgrade",
+      args: [
+        projectId,
+        contracts,
+        manifestBytecode,
+        manifestSalt,
+        expectedManifestAddress,
+        versionTag,
+      ],
     });
 
     const description = "Valid Timelock Test";
@@ -188,7 +228,7 @@ describe("Security & Advanced Features", function () {
         description,
         projectId,
         "QmTime",
-        expectedAddress,
+        expectedManifestAddress,
       ],
       { account: stakeholder1.account }
     );
