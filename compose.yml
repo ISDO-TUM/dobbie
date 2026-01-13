@@ -1,4 +1,4 @@
-version: "3.8"
+
 
 services:
 
@@ -16,7 +16,7 @@ services:
     networks:
       - sovereign-net
 
-  # 💻 2. THE DASHBOARD (Frontend)
+  # 💻 2. THE DASHBOARD (Frontend & Proxy)
   frontend:
     build: ./frontend
     container_name: sovereign-ui
@@ -24,11 +24,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:5173"
-    volumes:
-      - ./.env:/app/.env
-    environment:
-      - VITE_API_URL=http://localhost:3001
+      - "80:80"
     networks:
       - sovereign-net
 

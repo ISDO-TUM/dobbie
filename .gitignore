@@ -3,4 +3,5 @@
 **/coverage
 **/.DS_Store
 .env
-data/*.sqlite 
+data/*.sqlite
+dobbie-key.pem

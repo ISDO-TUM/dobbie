@@ -276,7 +276,7 @@ function TeamDashboard() {
           }
 
           const API_URL =
-            import.meta.env.VITE_API_URL || "http://localhost:3001";
+            import.meta.env.VITE_API_URL || "/api";
 
           alert(
             "Generating proposal calldata from IPFS package... This may take a moment.",
