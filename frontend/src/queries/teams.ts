@@ -6,7 +6,7 @@ import {
 import type { Team } from "../types";
 import { type InterfaceAbi } from "ethers";
 
-const API_URL = "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface PrepareTeamInput {
   token: string;

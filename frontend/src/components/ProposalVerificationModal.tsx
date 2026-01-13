@@ -22,7 +22,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import type { Contracts } from "../types";
 
-const API_URL = "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 interface ProposalVerificationModalProps {
   isOpen: boolean;
