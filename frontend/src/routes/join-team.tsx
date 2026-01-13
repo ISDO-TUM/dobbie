@@ -52,11 +52,12 @@ function JoinTeam() {
     useState<VerificationResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const form = useForm<JoinTeamForm>({
+  const form = useForm({
     resolver: zodResolver(joinTeamSchema),
     defaultValues: {
       governorAddress: "",
       registryAddress: "",
+      deploymentBlock: undefined,
     },
   });
 
@@ -104,7 +105,7 @@ function JoinTeam() {
         governorAddress: data.governorAddress,
         registryAddress: data.registryAddress,
         isImport: true,
-        deploymentBlock: data.deploymentBlock,
+        deploymentBlock: data.deploymentBlock as number | undefined,
       });
 
       navigate({ to: "/" });
