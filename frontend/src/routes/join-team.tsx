@@ -33,6 +33,7 @@ const joinTeamSchema = z.object({
     .string()
     .min(1, "Registry address is required")
     .refine((addr) => isAddress(addr), "Invalid Ethereum address"),
+  deploymentBlock: z.coerce.number().min(0).optional(),
 });
 
 type JoinTeamForm = z.infer<typeof joinTeamSchema>;
@@ -103,6 +104,7 @@ function JoinTeam() {
         governorAddress: data.governorAddress,
         registryAddress: data.registryAddress,
         isImport: true,
+        deploymentBlock: data.deploymentBlock,
       });
 
       navigate({ to: "/" });
@@ -205,6 +207,30 @@ function JoinTeam() {
               {errors.registryAddress && (
                 <p className="text-red-400 text-xs mt-1">
                   {errors.registryAddress.message}
+                </p>
+              )}
+            </div>
+
+            {/* Deployment Block (Optional) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
+                Deployment Block <span className="text-gray-500 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="number"
+                {...register("deploymentBlock")}
+                placeholder="0"
+                className={`w-full px-4 py-3 bg-gray-900/50 border ${
+                  errors.deploymentBlock ? "border-red-500" : "border-gray-700"
+                } rounded-lg text-white placeholder-gray-500 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors`}
+                disabled={isVerifying || verificationResult !== null}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                The block number where the contracts were deployed. Helps with indexing speed.
+              </p>
+              {errors.deploymentBlock && (
+                <p className="text-red-400 text-xs mt-1">
+                  {errors.deploymentBlock.message}
                 </p>
               )}
             </div>

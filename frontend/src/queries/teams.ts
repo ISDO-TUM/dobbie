@@ -154,6 +154,7 @@ export function useJoinTeamMutation() {
       governorAddress: string;
       registryAddress: string;
       isImport: boolean;
+      deploymentBlock?: number;
     }) => {
       const response = await fetch(`${API_URL}/teams/register`, {
         method: "POST",
