@@ -27,6 +27,7 @@ COPY package.json pnpm-lock.yaml ./
 
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
+RUN npm rebuild sqlite3
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
