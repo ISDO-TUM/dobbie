@@ -18,7 +18,7 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 
 # Install runtime dependencies (docker cli and git are needed by the agent)
-RUN apk add --no-cache docker-cli git
+RUN apk add --no-cache docker-cli git python3 make g++
 RUN npm install -g pnpm
 
 WORKDIR /app
