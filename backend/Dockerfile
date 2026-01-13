@@ -31,6 +31,7 @@ RUN npm rebuild sqlite3
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/artifacts ./artifacts
 
 EXPOSE 3001
 
