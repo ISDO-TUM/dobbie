@@ -108,6 +108,24 @@ function TeamDashboard() {
     refreshGovernanceData();
   }, [refreshProjects, refreshGovernanceData]);
 
+  // Auto-polling: refresh data every 60 seconds
+  useEffect(() => {
+    if (isInitializing) return;
+
+    const POLLING_INTERVAL_MS = 60 * 1000; // 60 seconds
+
+    console.log("⏰ Starting auto-polling (every 60 seconds)");
+    const intervalId = setInterval(() => {
+      console.log("⏰ Auto-polling: refreshing data...");
+      handleRefresh();
+    }, POLLING_INTERVAL_MS);
+
+    return () => {
+      console.log("⏰ Stopping auto-polling");
+      clearInterval(intervalId);
+    };
+  }, [isInitializing, handleRefresh]);
+
   // --- UI STATE ---
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState<ModalContentType>({
