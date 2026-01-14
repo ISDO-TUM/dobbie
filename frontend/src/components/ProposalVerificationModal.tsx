@@ -18,6 +18,7 @@ import {
   Lock,
   Box,
   Square,
+  AlertTriangle,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type { Contracts } from "../types";
@@ -35,6 +36,7 @@ interface ProposalVerificationModalProps {
   account: string | null;
   onVoteSuccess: () => void;
   canInteract?: boolean;
+  hasConflicts?: boolean;
 }
 
 type StepStatus = "idle" | "loading" | "success" | "error" | "checked";
@@ -55,6 +57,7 @@ export function ProposalVerificationModal({
   account,
   onVoteSuccess,
   canInteract = false,
+  hasConflicts = false,
 }: ProposalVerificationModalProps) {
   const [steps, setSteps] = useState<{
     math: VerificationStep;
@@ -497,6 +500,25 @@ export function ProposalVerificationModal({
               </p>
             </div>
           </div>
+
+          {/* Conflict Warning Banner */}
+          {hasConflicts && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+                <div className="text-xs text-gray-300">
+                  <span className="font-semibold text-orange-300">Warning:</span>{" "}
+                  There might be a conflict with one or more proposals. Check the{" "}
+                  <span className="font-semibold text-orange-300">Package Details</span>{" "}
+                  for more information.
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* Advisory Banner */}
           <motion.div

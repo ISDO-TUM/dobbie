@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   LayoutGrid,
   Settings,
@@ -11,7 +11,9 @@ import {
 import { ProposalCard } from "./ProposalCard";
 import { ProposalVerificationModal } from "./ProposalVerificationModal";
 import { parseProposalDescription } from "../lib/proposalParser";
+import { fetchManifest, detectProposalConflicts } from "../lib/conflictDetection";
 import type { Proposal, Contracts, Bot } from "../types";
+import type { ConflictInfo } from "./PackagePreview";
 
 interface ProposalDashboardProps {
   proposals: Proposal[];
@@ -52,7 +54,43 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
   const handleVerificationSuccess = (proposalId: string) => {
     setVerifiedIds((prev) => new Set(prev).add(proposalId));
     setVerifyingProposal(null);
+    setConflictingProposals([]);
   };
+
+  // Conflict detection state
+  const [conflictingProposals, setConflictingProposals] = useState<ConflictInfo[]>([]);
+
+  // Detect conflicts when opening verification modal
+  useEffect(() => {
+    if (!verifyingProposal?.ipfsCID) {
+      setConflictingProposals([]);
+      return;
+    }
+
+    const checkConflicts = async () => {
+      try {
+        // Fetch the manifest for the current proposal
+        const manifest = await fetchManifest(verifyingProposal.ipfsCID!);
+        const changedFiles = manifest?.metadata?.changedFiles || [];
+
+        if (changedFiles.length > 0) {
+          const conflicts = await detectProposalConflicts(
+            verifyingProposal.id.toString(),
+            changedFiles,
+            proposals
+          );
+          setConflictingProposals(conflicts);
+        } else {
+          setConflictingProposals([]);
+        }
+      } catch (error) {
+        console.error("Failed to detect conflicts:", error);
+        setConflictingProposals([]);
+      }
+    };
+
+    checkConflicts();
+  }, [verifyingProposal, proposals]);
 
   const handleRefresh = async () => {
     if (!onRefresh || isRefreshing) return;
@@ -329,6 +367,7 @@ export const ProposalDashboard: React.FC<ProposalDashboardProps> = ({
             onVoteSuccess();
           }}
           canInteract={canInteract}
+          hasConflicts={conflictingProposals.length > 0}
         />
       )}
     </div>

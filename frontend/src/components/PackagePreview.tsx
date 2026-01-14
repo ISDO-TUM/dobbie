@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   GitBranch,
   Shield,
   Zap,
@@ -22,8 +23,15 @@ import {
   Box,
 } from "lucide-react";
 
+export interface ConflictInfo {
+  proposalId: string;
+  ipfsCID: string;
+  conflictingFiles: string[];
+}
+
 interface PackagePreviewProps {
   ipfsCID: string;
+  conflictingProposals?: ConflictInfo[];
 }
 
 interface PackageManifest {
@@ -32,6 +40,7 @@ interface PackageManifest {
   metadata: {
     commitHash?: string;
     createdAt?: string;
+    changedFiles?: string[];
     name?: string;
     version?: string;
     description?: string;
@@ -284,12 +293,12 @@ const DirectoryFolder: React.FC<{
   );
 };
 
-export const PackagePreview: React.FC<PackagePreviewProps> = ({ ipfsCID }) => {
+export const PackagePreview: React.FC<PackagePreviewProps> = ({ ipfsCID, conflictingProposals = [] }) => {
   const [manifest, setManifest] = useState<PackageManifest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "summary" | "contracts" | "source" | "security"
+    "summary" | "contracts" | "source" | "security" | "conflicts"
   >("summary");
 
   useEffect(() => {
@@ -384,11 +393,14 @@ export const PackagePreview: React.FC<PackagePreviewProps> = ({ ipfsCID }) => {
     manifest.files,
   );
 
+  const hasConflicts = conflictingProposals.length > 0;
+
   const tabs = [
     { id: "summary" as const, label: "Summary", icon: FileText },
     { id: "contracts" as const, label: "Contracts", icon: Code },
     { id: "source" as const, label: "Source Code", icon: Package },
     { id: "security" as const, label: "Security", icon: Shield },
+    { id: "conflicts" as const, label: hasConflicts ? `Conflicts (${conflictingProposals.length})` : "Conflicts", icon: AlertTriangle, hasWarning: hasConflicts },
   ];
 
   return (
@@ -432,12 +444,16 @@ export const PackagePreview: React.FC<PackagePreviewProps> = ({ ipfsCID }) => {
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 min-w-fit px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? "bg-gray-800 text-purple-400 border-b-2 border-purple-400"
-                : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                ? tab.hasWarning
+                  ? "bg-gray-800 text-orange-400 border-b-2 border-orange-400"
+                  : "bg-gray-800 text-purple-400 border-b-2 border-purple-400"
+                : tab.hasWarning
+                  ? "text-orange-400 hover:text-orange-300 hover:bg-gray-800/50"
+                  : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
             }`}
           >
             <div className="flex items-center justify-center space-x-2">
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className={`w-4 h-4 ${tab.hasWarning ? "text-orange-400" : ""}`} />
               <span>{tab.label}</span>
             </div>
           </button>
@@ -736,6 +752,86 @@ export const PackagePreview: React.FC<PackagePreviewProps> = ({ ipfsCID }) => {
                 </p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Conflicts Tab */}
+        {activeTab === "conflicts" && (
+          <div className="space-y-4">
+            {hasConflicts ? (
+              <>
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-orange-300 mb-1">
+                        Potential Conflicts Detected
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        The following proposals modify some of the same files as this proposal.
+                        Review carefully to avoid merge conflicts or unintended overwrites.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {conflictingProposals.map((conflict) => (
+                    <div
+                      key={conflict.proposalId}
+                      className="bg-gray-900/50 border border-gray-700 rounded-lg p-4"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <span className="text-xs text-gray-500">Proposal ID</span>
+                          <div className="text-sm text-white font-mono">
+                            {conflict.proposalId.length > 20
+                              ? `${conflict.proposalId.slice(0, 10)}...${conflict.proposalId.slice(-8)}`
+                              : conflict.proposalId}
+                          </div>
+                        </div>
+                        <a
+                          href={`https://ipfs.io/ipfs/${conflict.ipfsCID}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>View Package</span>
+                        </a>
+                      </div>
+
+                      <div className="border-t border-gray-700 pt-3">
+                        <span className="text-xs text-gray-500 block mb-2">
+                          Conflicting Files ({conflict.conflictingFiles.length})
+                        </span>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {conflict.conflictingFiles.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 text-xs bg-red-900/20 border border-red-500/20 rounded px-2 py-1"
+                            >
+                              <FileCode className="w-3 h-3 text-red-400 shrink-0" />
+                              <span className="text-red-300 font-mono truncate">
+                                {file}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <Shield className="w-12 h-12 mb-3 opacity-50 text-green-500" />
+                <p className="text-sm text-gray-400">No conflicts detected</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  No other active proposals modify the same files.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
