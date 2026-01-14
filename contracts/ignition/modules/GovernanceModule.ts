@@ -18,7 +18,7 @@ const REGISTRY_PROJECT_CREATOR_ROLE =
 
 const GovernanceModule = buildModule("GovernanceModule", (m) => {
   // --- 1. CONFIGURATION PARAMETERS ---
-  const govName = m.getParameter("govName", "Dobby DevOps Governor");
+  const govName = m.getParameter("govName", "Dobbie DevOps Governor");
 
   // Voting Settings
   const votingDelay = m.getParameter("votingDelay", 0); // 0 blocks for dev

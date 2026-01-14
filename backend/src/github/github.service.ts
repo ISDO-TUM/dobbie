@@ -7,7 +7,7 @@ export class GithubService {
 
   // The template repository to fork from (Change this to your actual template)
   private readonly TEMPLATE_OWNER = 'Uni-Dobby';
-  private readonly TEMPLATE_REPO = 'dobby-template';
+  private readonly TEMPLATE_REPO = 'dobbie-template';
 
   /**
    * Forks the template repository into the user's account (or specified Org).

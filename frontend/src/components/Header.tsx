@@ -42,7 +42,7 @@ export const Header: React.FC = () => {
             <span className="text-white font-black text-sm">D</span>
           </div>
           <span className="bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Dobby
+            Dobbie
           </span>
         </Link>
 

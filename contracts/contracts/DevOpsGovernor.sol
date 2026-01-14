@@ -165,7 +165,7 @@ contract DevOpsGovernor is
         string calldata key,
         string calldata value
     ) external onlyRole(STAKEHOLDER_ROLE) {
-        // Emitting this event allows the Dobby Indexer to update the SQL database
+        // Emitting this event allows the Dobbie Indexer to update the SQL database
         // without requiring expensive on-chain string storage.
         emit IdentitySet(msg.sender, key, value);
     }

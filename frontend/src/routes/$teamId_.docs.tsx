@@ -55,7 +55,7 @@ function TeamDocs() {
                 Integration Documentation
               </h1>
               <p className="text-gray-400 mt-1">
-                Configure your CI/CD pipeline to work with Dobby governance
+                Configure your CI/CD pipeline to work with Dobbie governance
               </p>
             </div>
           </div>
@@ -234,7 +234,7 @@ function GitHubDocs({ team }: { team: Team }) {
             1
           </div>
           <h3 className="text-lg font-semibold text-white">
-            Fork the Dobby Template Repository
+            Fork the Dobbie Template Repository
           </h3>
         </div>
 
@@ -242,11 +242,11 @@ function GitHubDocs({ team }: { team: Team }) {
           We provide a ready-to-use template repository with all the necessary
           GitHub Actions workflows, DevOps scripts, Docker configuration, and
           dependencies pre-configured. Simply fork or copy the repo and start
-          using it with the Dobby platform.
+          using it with the Dobbie platform.
         </p>
 
         <a
-          href="https://github.com/kirillinoz/dobby-template"
+          href="https://github.com/kirillinoz/dobbie-template"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 rounded-xl p-4 transition-all group"
@@ -257,7 +257,7 @@ function GitHubDocs({ team }: { team: Team }) {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="text-white font-semibold">
-                kirillinoz/dobby-template
+                kirillinoz/dobbie-template
               </span>
               <ExternalLink className="w-4 h-4 text-gray-500" />
             </div>

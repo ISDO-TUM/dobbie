@@ -89,7 +89,7 @@ function Home() {
             <div className="flex items-center justify-center gap-3 mb-4">
               <Sparkles className="w-8 h-8 text-blue-400" />
               <h1 className="text-5xl lg:text-6xl font-bold bg-linear-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Welcome to Dobby
+                Welcome to Dobbie
               </h1>
               <Sparkles className="w-8 h-8 text-pink-400" />
             </div>
