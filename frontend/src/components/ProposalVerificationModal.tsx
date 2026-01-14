@@ -531,8 +531,7 @@ export function ProposalVerificationModal({
               <div className="text-xs text-gray-300">
                 <span className="font-semibold text-blue-300">Protocol:</span>{" "}
                 You must verify the bytecode hash (Step 1) to unlock the code
-                review. Running the standard package tests (Step 2) is highly
-                advised.
+                review.
               </div>
             </div>
           </motion.div>
@@ -612,8 +611,8 @@ export function ProposalVerificationModal({
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-gray-200 flex items-center gap-2">
                       Step 2: Standard Tests
-                      <span className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full font-mono">
-                        RECOMMENDED
+                      <span className="text-[10px] px-2 py-0.5 bg-gray-500/10 text-gray-400 border border-gray-500/30 rounded-full font-mono">
+                        OPTIONAL
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
@@ -650,8 +649,8 @@ export function ProposalVerificationModal({
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-gray-200 flex items-center gap-2">
                       Step 3: Custom Tests
-                      <span className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full font-mono">
-                        RECOMMENDED
+                      <span className="text-[10px] px-2 py-0.5 bg-gray-500/10 text-gray-400 border border-gray-500/30 rounded-full font-mono">
+                        OPTIONAL
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
