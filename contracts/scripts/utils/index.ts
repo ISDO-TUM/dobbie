@@ -35,8 +35,8 @@ export function getEnvAddress(envVar: string): `0x${string}` {
 // --- 2. Clients ---
 
 export function createClients(privateKey?: `0x${string}`) {
-  const rpcUrl = process.env.SEPOLIA_RPC_URL;
-  if (!rpcUrl) throw new Error("SEPOLIA_RPC_URL not set.");
+  const rpcUrl = process.env.RPC_URL;
+  if (!rpcUrl) throw new Error("RPC_URL not set.");
 
   const publicClient = createPublicClient({
     chain: sepolia,

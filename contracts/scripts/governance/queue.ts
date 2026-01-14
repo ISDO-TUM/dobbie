@@ -30,13 +30,13 @@ async function main() {
 
   const publicClient = createPublicClient({
     chain: sepolia,
-    transport: http(process.env.SEPOLIA_RPC_URL),
+    transport: http(process.env.RPC_URL),
   });
 
   const walletClient = createWalletClient({
     account,
     chain: sepolia,
-    transport: http(process.env.SEPOLIA_RPC_URL),
+    transport: http(process.env.RPC_URL),
   });
 
   const governor = await getContractInstance(

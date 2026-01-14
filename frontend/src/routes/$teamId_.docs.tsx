@@ -673,12 +673,12 @@ function GitHubDocs({ team }: { team: Team }) {
             )}
           </div>
 
-          {/* SEPOLIA_RPC_URL */}
+          {/* RPC_URL */ }
           <div className="bg-gray-800/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <code className="text-green-400 font-mono font-semibold">
-                  SEPOLIA_RPC_URL
+                  RPC_URL
                 </code>
                 <span className="text-xs bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full">
                   Required
