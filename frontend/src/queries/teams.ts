@@ -8,19 +8,6 @@ import { type InterfaceAbi } from "ethers";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-export interface PrepareTeamInput {
-  token: string;
-  name: string;
-  members: string[];
-}
-
-export interface PrepareTeamResponse {
-  repoUrl: string;
-  owner: string;
-  repoName: string;
-  invites: unknown[];
-}
-
 export interface RegisterTeamInput {
   name: string;
   governorAddress: string;
@@ -95,27 +82,6 @@ export const allTeamsQueryOptions = (includeArchived = false) =>
   });
 
 // --- Mutations (POST Requests) ---
-
-export const usePrepareTeamMutation = () => {
-  return useMutation({
-    mutationFn: async (data: PrepareTeamInput) => {
-      const res = await fetch(`${API_URL}/teams/prepare`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || "Failed to prepare GitHub infrastructure",
-        );
-      }
-
-      return res.json() as Promise<PrepareTeamResponse>;
-    },
-  });
-};
 
 export const useRegisterTeamMutation = () => {
   const queryClient = useQueryClient();

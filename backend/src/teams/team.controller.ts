@@ -20,13 +20,6 @@ export class TeamController {
     private readonly deploymentService: DeploymentService,
   ) {}
 
-  @Post('prepare')
-  async prepareInfrastructure(
-    @Body() body: { token: string; name: string; members: string[] },
-  ) {
-    return this.teamService.prepareInfrastructure(body);
-  }
-
   @Get('artifacts')
   getArtifacts() {
     return this.deploymentService.getAllArtifacts();

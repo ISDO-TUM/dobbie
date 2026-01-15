@@ -8,7 +8,6 @@ import { BlockchainModule } from './blockchain/blockchain.module';
 import { IpfsModule } from './ipfs/ipfs.module';
 import { Team } from './teams/entities/team.entity';
 import { TeamModule } from './teams/team.module';
-import { GithubModule } from './github/github.module';
 import { DeploymentModule } from './deployment/deployment.module';
 import { VerificationModule } from './verification/verification.module';
 import { ProposalVerification } from './verification/entities/verification.entity';
@@ -30,7 +29,6 @@ import { ProposalVerification } from './verification/entities/verification.entit
     BlockchainModule,
     IpfsModule,
     TeamModule,
-    GithubModule,
     DeploymentModule,
     VerificationModule,
   ],

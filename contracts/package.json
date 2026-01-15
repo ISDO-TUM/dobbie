@@ -11,15 +11,8 @@
     "lint:fix": "solhint 'contracts/**/*.sol' --fix && eslint '**/*.ts' --fix",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "build:artifacts": "hardhat compile && mkdir -p ../backend/artifacts && cp -r artifacts/contracts ../backend/artifacts/",
-    "deploy": "hardhat ignition deploy --network sepolia ignition/modules/GovernanceModule.ts",
     "analyze:gas": "tsx scripts/analysis/analyze-gas.ts",
-    "analyze:events": "hardhat run scripts/analysis/export-events.ts --network sepolia",
-    "gov:propose": "tsx scripts/governance/propose-general.ts",
-    "gov:propose-package": "tsx scripts/governance/propose-package.ts",
-    "gov:vote": "tsx scripts/governance/vote.ts",
-    "gov:queue": "tsx scripts/governance/queue.ts",
-    "gov:execute": "tsx scripts/governance/execute.ts",
-    "gov:state": "tsx scripts/governance/state.ts"
+    "analyze:events": "hardhat run scripts/analysis/export-events.ts --network sepolia"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

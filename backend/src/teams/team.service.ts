@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Team } from './entities/team.entity';
 import { ProposalVerification } from '../verification/entities/verification.entity';
-import { GithubService } from '../github/github.service';
 
 @Injectable()
 export class TeamService {
@@ -12,38 +11,7 @@ export class TeamService {
     private teamsRepository: Repository<Team>,
     @InjectRepository(ProposalVerification)
     private verificationRepository: Repository<ProposalVerification>,
-    private githubService: GithubService,
   ) {}
-
-  async prepareInfrastructure(dto: {
-    token: string;
-    name: string;
-    members: string[];
-  }) {
-    const repoName = dto.name.toLowerCase().replace(/\s+/g, '-');
-    const description = `Sovereign DevOps Governance for ${dto.name}`;
-
-    const repoDetails = await this.githubService.createSovereignRepo(
-      dto.token,
-      repoName,
-      description,
-    );
-
-    // 2. Add Members
-    const inviteResults = await this.githubService.addCollaborators(
-      dto.token,
-      repoDetails.owner,
-      repoDetails.name,
-      dto.members,
-    );
-
-    return {
-      repoUrl: repoDetails.repoUrl,
-      owner: repoDetails.owner,
-      repoName: repoDetails.name,
-      invites: inviteResults,
-    };
-  }
 
   async registerTeam(dto: {
     name: string;
