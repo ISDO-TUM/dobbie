@@ -69,7 +69,68 @@ The project is a monorepo managed with **pnpm workspaces**.
 
 ### Verification (`/verification`)
 
-- **Analysis**: Python scripts for performance and safety checks.
+- **Analysis**: Python scripts for process mining conformance checking and performance analysis.
+- **Dependencies**: Python 3, pm4py, pandas, matplotlib
+- **Tooling**: Graphviz (for DFG diagram generation)
+
+## Reproducing the Evaluation
+
+The correctness benchmark from the paper (conformant scenarios S1--S7, adversarial scenarios SN1--SN7, synthetic violations V1--V7) can be fully reproduced with a single script.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v20+) and [pnpm](https://pnpm.io/)
+- Python 3 with `pm4py`, `pandas`, and `matplotlib`
+- [Graphviz](https://graphviz.org/) (`brew install graphviz` on macOS)
+
+### Steps
+
+1.  **Install contract dependencies**
+
+    ```bash
+    cd contracts
+    pnpm install
+    ```
+
+2.  **Install Python dependencies**
+
+    ```bash
+    pip install pm4py pandas matplotlib
+    ```
+
+3.  **Run the full verification pipeline**
+
+    ```bash
+    cd verification
+    bash verify_all.sh
+    ```
+
+    This script executes the following steps:
+
+    | Step | Description | Output |
+    |------|-------------|--------|
+    | 1 | Simulate all scenarios (S1--S7, SN1--SN7) on a local Hardhat blockchain | `data/process_mining/simulated_*.csv` |
+    | 2 | Verify conformance (TBR + alignment fitness) and run synthetic violations (V1--V7) | Console output |
+    | 3 | Generate performance-annotated DFG | `verification/output/simulated_performance.pdf` |
+    | 4 | (Optional) Verify real Sepolia testnet data if CSVs are present | `verification/output/governance_performance.pdf` |
+
+4.  **(Optional) Generate per-scenario trace diagrams**
+
+    ```bash
+    cd verification
+    python3 generate_diagrams.py \
+      --gov-csv ../data/process_mining/simulated_governance_log.csv \
+      --output-dir output \
+      --prefix simulated
+    ```
+
+    This generates individual DFG diagrams for each trace and a combined frequency DFG, useful for visual inspection and debugging.
+
+### Expected Output
+
+- **Conformant scenarios**: 100.00% TBR fitness, 99.99% alignment fitness (PASS)
+- **Adversarial scenarios**: All seven result in reverted transactions; SN2 and SN7 detected as deviations (fitness 0.80, 0.83)
+- **Synthetic violations**: All seven detected (fitness 0.67--0.86)
 
 ## Key Features
 

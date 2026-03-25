@@ -5,3 +5,4 @@
 .env
 data/*.sqlite
 dobbie-key.pem
+verification/output/
