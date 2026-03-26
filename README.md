@@ -126,7 +126,37 @@ The correctness benchmark from the paper (conformant scenarios S1--S7, adversari
 
     This generates individual DFG diagrams for each trace and a combined frequency DFG, useful for visual inspection and debugging.
 
-### Expected Output
+### Gas Cost Analysis
+
+The gas cost benchmark measures the on-chain cost of each governance lifecycle step (role setup, proposal, voting, queuing, execution). Gas consumption is deterministic, so results are reproducible across environments. USD costs are computed using a 30-day average ETH price fetched from CoinGecko (no API key required).
+
+```bash
+cd contracts
+npx hardhat run scripts/analysis/analyze-gas.ts
+```
+
+This will:
+
+1. Fetch the 30-day average ETH price from CoinGecko (falls back to CoinMarketCap spot price if `COINMARKETCAP_API_KEY` is set in `.env`)
+2. Deploy the governance contracts on a local Hardhat blockchain
+3. Execute a full governance lifecycle (propose, vote, queue, execute)
+4. Output a table with gas used, ETH cost, and USD cost per step
+
+#### Expected Output
+
+| Governance Step        | Gas     | Cost (ETH) | Cost (USD) |
+|------------------------|---------|------------|------------|
+| Setup: Grant Role      | 51,311  | 0.00103    | ~$2        |
+| Propose Package        | 115,306 | 0.00231    | ~$5        |
+| Cast Vote (first)      | 75,463  | 0.00151    | ~$3        |
+| Cast Vote (subsequent) | 58,363  | 0.00117    | ~$2        |
+| Queue Proposal         | 132,671 | 0.00265    | ~$6        |
+| Execute Proposal       | 74,352  | 0.00149    | ~$3        |
+| **Total Lifecycle**    | **507,466** | **0.01015** | **~$21** |
+
+> Gas values are deterministic; USD values will vary with ETH price at time of execution.
+
+### Expected Output (Correctness Benchmark)
 
 - **Conformant scenarios**: 100.00% TBR fitness, 99.99% alignment fitness (PASS)
 - **Adversarial scenarios**: All seven result in reverted transactions; SN2 and SN7 detected as deviations (fitness 0.80, 0.83)
