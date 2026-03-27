@@ -75,7 +75,7 @@ The project is a monorepo managed with **pnpm workspaces**.
 
 ## Reproducing the Evaluation
 
-The correctness benchmark from the paper (conformant scenarios S1--S7, adversarial scenarios SN1--SN7, synthetic violations V1--V7) can be fully reproduced with a single script.
+The correctness benchmark from the paper (conformant scenarios C1--C3, adversarial scenarios N1--N7, synthetic violations V1--V5) can be fully reproduced with a single script. The repository additionally includes identity scenarios (S5--S7) and identity violation traces (V6--V7), which are not discussed in the paper but are verified as part of the pipeline.
 
 ### Prerequisites
 
@@ -109,7 +109,7 @@ The correctness benchmark from the paper (conformant scenarios S1--S7, adversari
 
     | Step | Description | Output |
     |------|-------------|--------|
-    | 1 | Simulate all scenarios (S1--S7, SN1--SN7) on a local Hardhat blockchain | `data/process_mining/simulated_*.csv` |
+    | 1 | Simulate all scenarios (C1--C3, N1--N7, S5--S7) on a local Hardhat blockchain | `data/process_mining/simulated_*.csv` |
     | 2 | Verify conformance (TBR + alignment fitness) and run synthetic violations (V1--V7) | Console output |
     | 3 | Generate performance-annotated DFG | `verification/output/simulated_performance.pdf` |
     | 4 | (Optional) Verify real Sepolia testnet data if CSVs are present | `verification/output/governance_performance.pdf` |
@@ -158,9 +158,10 @@ This will:
 
 ### Expected Output (Correctness Benchmark)
 
-- **Conformant scenarios**: 100.00% TBR fitness, 99.99% alignment fitness (PASS)
-- **Adversarial scenarios**: All seven result in reverted transactions; SN2 and SN7 detected as deviations (fitness 0.80, 0.83)
-- **Synthetic violations**: All seven detected (fitness 0.67--0.86)
+- **Conformant scenarios (C1--C3)**: 100.00% TBR fitness, 99.99% alignment fitness (PASS)
+- **Identity scenarios (S5--S7)**: 100.00% TBR fitness, 99.99% alignment fitness (PASS)
+- **Adversarial scenarios (N1--N7)**: All seven result in reverted transactions; N2 and N7 detected as deviations (fitness 0.83)
+- **Synthetic violations (V1--V7)**: All seven detected (fitness 0.67--0.86)
 
 ## Key Features
 

@@ -247,14 +247,14 @@ async function scenario1_happyPathUpgrade() {
   await networkHelpers.time.increase(BLOCK_TIME);
   await testClient.mine({ blocks: Number(VOTING_DELAY) });
 
-  // Vote 1 arrives ~30 minutes into the voting period
-  await networkHelpers.time.increase(30 * 60);
+  // Vote 1 arrives 1 hour into the voting period
+  await networkHelpers.time.increase(60 * 60);
   const v1Hash = await governor.write.castVote([proposalId, 1], {
     account: stakeholder1.account,
   });
   await collectGovEvents(v1Hash, proposalId.toString());
 
-  // Vote 2 arrives ~1.5 hours into the voting period
+  // Vote 2 arrives 1 hour after vote 1 (2 hours into the voting period)
   await networkHelpers.time.increase(60 * 60);
   const v2Hash = await governor.write.castVote([proposalId, 1], {
     account: stakeholder2.account,
@@ -279,64 +279,6 @@ async function scenario1_happyPathUpgrade() {
   // Execute
   const execHash = await governor.write.execute(
     [[registry.address], [0n], [upgradeCallData], descHash],
-    { account: stakeholder1.account }
-  );
-  await collectGovEvents(execHash, proposalId.toString());
-
-  console.log("   OK");
-}
-
-async function scenario2_happyPathSimple() {
-  console.log("\n--- Scenario 2: Happy Path (Simple, no package) ---");
-
-  const description = "Simple governance action";
-
-  // Use `propose` (not proposePackage) — no ProposalPackageCreated event
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
-    { account: stakeholder1.account }
-  );
-  const { govEvents } = await collectGovEvents(proposeHash);
-  const proposalId = (govEvents.find(
-    (e: any) => e.eventName === "ProposalCreated"
-  ) as any).args.proposalId;
-
-  // Advance past voting delay
-  await networkHelpers.time.increase(BLOCK_TIME);
-  await testClient.mine({ blocks: Number(VOTING_DELAY) });
-
-  // Vote 1 arrives ~15 minutes in (fast review — simple action)
-  await networkHelpers.time.increase(15 * 60);
-  const v1Hash = await governor.write.castVote([proposalId, 1], {
-    account: stakeholder1.account,
-  });
-  await collectGovEvents(v1Hash, proposalId.toString());
-
-  // Vote 2 arrives ~45 minutes in
-  await networkHelpers.time.increase(30 * 60);
-  const v2Hash = await governor.write.castVote([proposalId, 1], {
-    account: stakeholder2.account,
-  });
-  await collectGovEvents(v2Hash, proposalId.toString());
-
-  // Advance past remaining voting period
-  await networkHelpers.time.increase(5 * 3600);
-  await testClient.mine({ blocks: Number(VOTING_PERIOD) });
-
-  // Queue
-  const descHash = keccak256(toHex(description));
-  const queueHash = await governor.write.queue(
-    [[timelock.address], [0n], ["0x"], descHash],
-    { account: stakeholder1.account }
-  );
-  await collectGovEvents(queueHash, proposalId.toString());
-
-  // Advance past timelock delay (2 hours)
-  await networkHelpers.time.increase(Number(TIMELOCK_DELAY) + 1);
-
-  // Execute
-  const execHash = await governor.write.execute(
-    [[timelock.address], [0n], ["0x"], descHash],
     { account: stakeholder1.account }
   );
   await collectGovEvents(execHash, proposalId.toString());
@@ -378,14 +320,14 @@ async function scenario3_defeatedAgainstMajority() {
   await testClient.mine({ blocks: Number(VOTING_DELAY) });
 
   // Vote AGAINST (support = 0) — stakeholders review and reject
-  // Vote 1 arrives ~1 hour in
-  await networkHelpers.time.increase(3600);
+  // Vote 1 arrives 2 hours into the voting period
+  await networkHelpers.time.increase(2 * 3600);
   const v1Hash = await governor.write.castVote([proposalId, 0], {
     account: stakeholder1.account,
   });
   await collectGovEvents(v1Hash, proposalId.toString());
 
-  // Vote 2 arrives ~2 hours in
+  // Vote 2 arrives 1 hour after vote 1 (3 hours into the voting period)
   await networkHelpers.time.increase(3600);
   const v2Hash = await governor.write.castVote([proposalId, 0], {
     account: stakeholder2.account,
@@ -426,8 +368,8 @@ async function scenario4_defeatedQuorumNotMet() {
   await networkHelpers.time.increase(BLOCK_TIME);
   await testClient.mine({ blocks: Number(VOTING_DELAY) });
 
-  // Only 1 stakeholder votes (quorum needs 2) — vote arrives ~2 hours in
-  await networkHelpers.time.increase(2 * 3600);
+  // Only 1 stakeholder votes (quorum needs 2) — vote arrives 3 hours in
+  await networkHelpers.time.increase(3 * 3600);
   const v1Hash = await governor.write.castVote([proposalId, 1], {
     account: stakeholder1.account,
   });
@@ -447,9 +389,7 @@ async function scenario4_defeatedQuorumNotMet() {
 async function scenario5_identityFullLifecycle() {
   console.log("\n--- Scenario 5: Identity Full Lifecycle ---");
 
-  // stakeholder3 is added during governance setup via constructor
-  // We need a fresh address for this — use deployer to add/remove via governance
-  // Actually, stakeholder1 and stakeholder2 are already added in constructor.
+  // stakeholder1 and stakeholder2 are already added in constructor.
   // For identity scenarios, we collect the constructor events + manual identity actions.
 
   // Set identity for stakeholder1
@@ -463,11 +403,6 @@ async function scenario5_identityFullLifecycle() {
     { account: stakeholder1.account }
   );
   await collectIdentityEvent(id2Hash);
-
-  // Note: StakeholderRemoved requires governance action (removeStakeholder).
-  // We'll simulate this by noting that stakeholder1 was added in constructor.
-  // The remove would need to go through governance, which is complex.
-  // For the identity trace, we manually add the StakeholderAdded event from constructor.
 
   console.log("   OK");
 }
@@ -501,10 +436,24 @@ async function scenario7_identityAddRemove() {
 async function scenario8_executeWithoutQueue() {
   console.log("\n--- Scenario 8: Attempt Execute Without Queue ---");
 
+  const projectName = "ExecWithoutQueueProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: execute without queue";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmExecWithoutQueue",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -542,7 +491,7 @@ async function scenario8_executeWithoutQueue() {
   // Attempt execute() directly — skipping queue()
   try {
     await governor.write.execute(
-      [[timelock.address], [0n], ["0x"], descHash],
+      [[registry.address], [0n], [upgradeCallData], descHash],
       { account: stakeholder1.account }
     );
     console.log("   UNEXPECTED: execute succeeded without queue!");
@@ -558,10 +507,24 @@ async function scenario8_executeWithoutQueue() {
 async function scenario9_executeBeforeTimelockDelay() {
   console.log("\n--- Scenario 9: Attempt Execute Before Timelock Delay ---");
 
+  const projectName = "EarlyExecProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: execute before timelock";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmEarlyExec",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -596,7 +559,7 @@ async function scenario9_executeBeforeTimelockDelay() {
   // Queue — this succeeds
   const descHash = keccak256(toHex(description));
   const queueHash = await governor.write.queue(
-    [[timelock.address], [0n], ["0x"], descHash],
+    [[registry.address], [0n], [upgradeCallData], descHash],
     { account: stakeholder1.account }
   );
   await collectGovEvents(queueHash, advId);
@@ -604,7 +567,7 @@ async function scenario9_executeBeforeTimelockDelay() {
   // Attempt execute immediately — NO time advance past timelock delay
   try {
     await governor.write.execute(
-      [[timelock.address], [0n], ["0x"], descHash],
+      [[registry.address], [0n], [upgradeCallData], descHash],
       { account: stakeholder1.account }
     );
     console.log("   UNEXPECTED: execute succeeded before timelock delay!");
@@ -622,10 +585,24 @@ async function scenario9_executeBeforeTimelockDelay() {
 async function scenario10_voteAfterPeriodEnds() {
   console.log("\n--- Scenario 10: Attempt Vote After Voting Period ---");
 
+  const projectName = "LateVoteProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: late vote";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmLateVote",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -660,10 +637,24 @@ async function scenario10_voteAfterPeriodEnds() {
 async function scenario11_voteBeforeDelay() {
   console.log("\n--- Scenario 11: Attempt Vote Before Voting Delay ---");
 
+  const projectName = "EarlyVoteProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: premature vote";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmEarlyVote",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -694,10 +685,24 @@ async function scenario11_voteBeforeDelay() {
 async function scenario12_doubleVote() {
   console.log("\n--- Scenario 12: Attempt Double Vote ---");
 
+  const projectName = "DoubleVoteProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: double vote";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmDoubleVote",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -738,10 +743,24 @@ async function scenario12_doubleVote() {
 async function scenario13_queueWhileActive() {
   console.log("\n--- Scenario 13: Attempt Queue While Voting Active ---");
 
+  const projectName = "EarlyQueueProject";
+  await registry.write.registerNewProject([projectName], {
+    account: deployer.account,
+  });
+  const { projectId, upgradeCallData, expectedManifestAddress } =
+    prepareUpgrade(projectName);
   const description = "Should fail: premature queue";
 
-  const proposeHash = await governor.write.propose(
-    [[timelock.address], [0n], ["0x"], description],
+  const proposeHash = await governor.write.proposePackage(
+    [
+      [registry.address],
+      [0n],
+      [upgradeCallData],
+      description,
+      projectId,
+      "QmEarlyQueue",
+      expectedManifestAddress,
+    ],
     { account: stakeholder1.account }
   );
   const { govEvents } = await collectGovEvents(proposeHash);
@@ -773,7 +792,7 @@ async function scenario13_queueWhileActive() {
   const descHash = keccak256(toHex(description));
   try {
     await governor.write.queue(
-      [[timelock.address], [0n], ["0x"], descHash],
+      [[registry.address], [0n], [upgradeCallData], descHash],
       { account: stakeholder1.account }
     );
     console.log("   UNEXPECTED: queue succeeded while active!");
@@ -995,7 +1014,6 @@ async function main() {
   // Run Governance Scenarios
   // -----------------------------------------------------------------------
   await scenario1_happyPathUpgrade();
-  await scenario2_happyPathSimple();
   await scenario3_defeatedAgainstMajority();
   await scenario4_defeatedQuorumNotMet();
 

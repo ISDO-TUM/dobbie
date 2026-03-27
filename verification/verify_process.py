@@ -25,11 +25,10 @@ def preprocess_logs(gov_path, identity_path):
             proposal_id = match.iloc[0]['case:concept:name']
             gov_log.at[index, 'case:concept:name'] = proposal_id
 
-            # Subtract 1 millisecond so Upgrade appears before Execute
-            gov_log.at[index, 'time:timestamp'] -= pd.Timedelta(milliseconds=1)
-
-    # Re-sort after the timestamp tweak to ensure Upgrade -> Execute order is preserved
-    gov_log = gov_log.sort_values(by=['case:concept:name', 'time:timestamp'])
+    # Re-sort after case relabelling; concept:name as tiebreaker ensures
+    # DeterministicUpgradeExecuted (D) sorts before ProposalExecuted (P)
+    # when both share the same transaction timestamp.
+    gov_log = gov_log.sort_values(by=['case:concept:name', 'time:timestamp', 'concept:name'])
 
     # Load Identity Log
     id_log = pd.read_csv(identity_path)

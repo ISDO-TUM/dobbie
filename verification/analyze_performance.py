@@ -24,9 +24,10 @@ def analyze_governance_performance(log_path, output_path):
         match = executions[executions['time:timestamp'] == row['time:timestamp']]
         if not match.empty:
             log.at[index, 'case:concept:name'] = match.iloc[0]['case:concept:name']
-            log.at[index, 'time:timestamp'] -= pd.Timedelta(milliseconds=1)
 
-    log = log.sort_values(by=['case:concept:name', 'time:timestamp'])
+    # concept:name tiebreaker ensures DeterministicUpgradeExecuted (D)
+    # sorts before ProposalExecuted (P) when both share the same timestamp.
+    log = log.sort_values(by=['case:concept:name', 'time:timestamp', 'concept:name'])
 
     # Filter out adversarial traces (ADV_ prefix) — keep only conformant scenarios
     log = log[~log['case:concept:name'].astype(str).str.startswith('ADV_')]
