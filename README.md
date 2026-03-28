@@ -1,5 +1,7 @@
 This repository serves as a replication package for the paper _An Architecture for Decentralised Deployment
-and Operation of Blockchain Applications_. To verify the evaluation, see [Reproducing the Evaluation](#reproducing-the-evaluation).
+and Operation of Blockchain Applications_. 
+- To verify the evaluation, see [Reproducing the Evaluation](#reproducing-the-evaluation).
+- `data/appendix_petri_net.pdf` includes our online appendix of the in the paper (correctness benchmark) mentioned petri net.
 
 # Dobbie
 
