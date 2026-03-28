@@ -1,3 +1,6 @@
+# Dobbie
+
+Dobbie is a platform that bridges the gap between DevOps automation and decentralized governance. It allows teams to manage their infrastructure and deployments through on-chain proposals, ensuring security, transparency, and atomic updates.
 
 ## Table of Contents
 
@@ -17,10 +20,6 @@
   - [Smart Contracts](#smart-contracts-contracts)
   - [Verification](#verification-verification)
 
-
-# Dobbie
-
-Dobbie is a platform that bridges the gap between DevOps automation and decentralized governance. It allows teams to manage their infrastructure and deployments through on-chain proposals, ensuring security, transparency, and atomic updates.
 
 ## Quick Start
 
