@@ -1,3 +1,6 @@
+This repository serves as a replication package for the paper _An Architecture for Decentralised Deployment
+and Operation of Blockchain Applications_. To verify the evaluation, see [Reproducing the Evaluation](#reproducing-the-evaluation).
+
 # Dobbie
 
 Dobbie is a platform that bridges the gap between DevOps automation and decentralized governance. It allows teams to manage their infrastructure and deployments through on-chain proposals, ensuring security, transparency, and atomic updates.
