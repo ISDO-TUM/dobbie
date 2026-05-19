@@ -39,11 +39,6 @@ Get the entire system running in minutes with Docker.
 
 1.  **Clone the repository**
 
-    ```bash
-    git clone REDACTED
-    cd dobbie
-    ```
-
 2.  **Start the application**
 
     ```bash
@@ -58,7 +53,7 @@ Get the entire system running in minutes with Docker.
 
 Want to make your own project compatible with the Dobbie governance system? usage our starter template:
 
-👉 **[Dobbie Project Template]** (Link REDACTED)
+👉 [Dobbie Project Template](https://github.com/kirillinoz/dobbie-template)
 
 This template includes the necessary structure and configuration to integrate with Dobbie's verification and proposal system.
 
